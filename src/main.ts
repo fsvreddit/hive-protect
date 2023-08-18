@@ -37,6 +37,11 @@ Devvit.addSettings([
     label: 'Enter a ban reason to send to users'
   },
   {
+    type: 'string',
+    name: 'bannote',
+    label: 'Enter a note to put in the ban log (optional)'
+  },
+  {
     type: 'boolean',
     name: 'exemptapproveduser',
     label: 'Exempt approved users'
@@ -81,6 +86,7 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
     }
   }
 
+  /*
   const timeBetweenChecks = 60 * 60 * 1000; // One hour i.e. 60 minutes, 60 seconds, 1000 ms
 
   var lastCheckDate =  await context.kvStore.get(`participation-lastcheck-${userName}`) as number | undefined;
@@ -102,6 +108,7 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
     console.log(`User ${userName} was previously banned, quitting`);
     return false;
   }
+  */
 
   const subReddits = await context.settings.get('subreddits') as string;
   var subredditList = subReddits.toLowerCase().split(",");
@@ -141,6 +148,28 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
 
 };
 
+async function banUser(context: Context, userName: string, subName: string): Promise<void>
+{
+  const banMessage = await context.settings.get('banmessage') as string;
+  const banNote = await context.settings.get('bannote') as string;
+
+  var banReason: string;
+  if (banNote !== undefined && banNote.length > 0)
+    banReason = 'Hive Protector: ' + banNote
+  else
+    banReason = 'Banned by Hive Protector';
+
+  context.reddit.banUser({
+    username: userName,
+    reason: banReason,
+    message: banMessage,
+    subredditName: subName
+  });
+  console.log(`Banned ${userName} from ${subName}`);
+
+  return;
+}
+
 Devvit.addTrigger({
   event: 'PostSubmit',
   async onEvent(event, context) {
@@ -152,25 +181,18 @@ Devvit.addTrigger({
     }
 
     const userName = event.author.name;
-
-    var shouldBan = await userFailsChecks(context, userName);
-
-    if (!shouldBan)
-      return;
-
     if (!event.subreddit)
     {
       console.log("Subreddit context not found, quitting");
       return;
     }
-    const banMessage = await context.settings.get('banmessage') as string;
 
-    context.reddit.banUser({
-      username: userName,
-      reason: `Banned by Hive Protector`,
-      message: banMessage,
-      subredditName: event.subreddit.name
-    });
+    var shouldBan = await userFailsChecks(context, event.subreddit.name);
+
+    if (!shouldBan)
+      return;
+
+    await banUser(context, userName, event.subreddit.name);
 
     await context.kvStore.put(`participation-prevbanned-${userName}`, true);
 
@@ -178,8 +200,8 @@ Devvit.addTrigger({
     {
       const post = await context.reddit.getPostById(event.post.id);
       post.remove(true);
+      console.log(`Removed postid ${event.post.id}`);
     }
-
   }
 });
 
@@ -194,25 +216,18 @@ Devvit.addTrigger({
     }
 
     const userName = event.author.name;
+    if (!event.subreddit)
+    {
+      console.log("Subreddit context not found, quitting");
+      return;
+    }
 
     var shouldBan = await userFailsChecks(context, userName);
 
     if (!shouldBan)
       return;
 
-    if (!event.subreddit)
-    {
-      console.log("Subreddit context not found, quitting");
-      return;
-    }
-    const banMessage = await context.settings.get('banmessage') as string;
-
-    context.reddit.banUser({
-      username: userName,
-      reason: `Banned by Hive Protector`,
-      message: banMessage,
-      subredditName: event.subreddit.name
-    });
+    await banUser(context, userName, event.subreddit.name);
 
     await context.kvStore.put(`participation-prevbanned-${userName}`, true);
 
@@ -220,6 +235,7 @@ Devvit.addTrigger({
     {
       const comment = await context.reddit.getCommentById(event.comment.id);
       comment.remove(true);
+      console.log(`Removed commentid ${event.comment.id}`);
     }
 
   }

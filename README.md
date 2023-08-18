@@ -14,6 +14,8 @@ Enable functionality: This app will not run if it has been disabled. You may wan
 
 **Ban reason**: This is a message sent to the user when they are banned.
 
+**Ban note**: This is a note to put in the mod log when a user is banned.
+
 **Exempt Approved Users**: Allows you to exclude users who are approved submitters from checks
 
 ## Operation notes
