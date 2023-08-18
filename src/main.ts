@@ -86,7 +86,6 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
     }
   }
 
-  /*
   const timeBetweenChecks = 60 * 60 * 1000; // One hour i.e. 60 minutes, 60 seconds, 1000 ms
 
   var lastCheckDate =  await context.kvStore.get(`participation-lastcheck-${userName}`) as number | undefined;
@@ -108,7 +107,6 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
     console.log(`User ${userName} was previously banned, quitting`);
     return false;
   }
-  */
 
   const subReddits = await context.settings.get('subreddits') as string;
   var subredditList = subReddits.toLowerCase().split(",");
