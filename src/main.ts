@@ -1,4 +1,4 @@
-import { Devvit, Context } from '@devvit/public-api';
+import { Devvit, Context, Post, Comment } from '@devvit/public-api';
 
 Devvit.addSettings([
   {
@@ -168,38 +168,36 @@ async function banUser(context: Context, userName: string, subName: string): Pro
   return;
 }
 
+async function processEvent(item: Post | Comment, context: Context): Promise<void>
+{
+  const userName = item.authorName;
+
+  var shouldBan = await userFailsChecks(context, userName);
+
+  if (!shouldBan)
+    return;
+
+  await banUser(context, userName, item.subredditName);
+
+  await context.kvStore.put(`participation-prevbanned-${userName}`, true);
+
+  await item.remove(true);
+  console.log(`Removed item ${item.id}`);
+}
+
 Devvit.addTrigger({
   event: 'PostSubmit',
   async onEvent(event, context) {
 
-    if (!event.author)
+    if (!event.post)
     {
-      console.log("A new post was created but couldn't find author!")
+      console.log("A new post was created, but is undefined");
       return;
     }
 
-    const userName = event.author.name;
-    if (!event.subreddit)
-    {
-      console.log("Subreddit context not found, quitting");
-      return;
-    }
+    const post = await context.reddit.getPostById(event.post.id);
 
-    var shouldBan = await userFailsChecks(context, event.subreddit.name);
-
-    if (!shouldBan)
-      return;
-
-    await banUser(context, userName, event.subreddit.name);
-
-    await context.kvStore.put(`participation-prevbanned-${userName}`, true);
-
-    if (event.post)
-    {
-      const post = await context.reddit.getPostById(event.post.id);
-      post.remove(true);
-      console.log(`Removed postid ${event.post.id}`);
-    }
+    await processEvent(post, context);
   }
 });
 
@@ -207,35 +205,14 @@ Devvit.addTrigger({
   event: 'CommentSubmit',
   async onEvent(event, context) {
 
-    if (!event.author)
+    if (!event.comment)
     {
-      console.log("A new comment was created but couldn't find author!")
+      console.log("A new comment was created, but is undefined");
       return;
     }
-
-    const userName = event.author.name;
-    if (!event.subreddit)
-    {
-      console.log("Subreddit context not found, quitting");
-      return;
-    }
-
-    var shouldBan = await userFailsChecks(context, userName);
-
-    if (!shouldBan)
-      return;
-
-    await banUser(context, userName, event.subreddit.name);
-
-    await context.kvStore.put(`participation-prevbanned-${userName}`, true);
-
-    if (event.comment)
-    {
-      const comment = await context.reddit.getCommentById(event.comment.id);
-      comment.remove(true);
-      console.log(`Removed commentid ${event.comment.id}`);
-    }
-
+    const comment = await context.reddit.getCommentById(event.comment.id);
+    
+    await processEvent(comment, context);
   }
 });
 
