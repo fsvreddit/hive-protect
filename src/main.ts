@@ -118,8 +118,6 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
   const daysToMonitor = await context.settings.get('daystomonitor') as number;
   const timeDifference = daysToMonitor * 24 * 60 * 60 * 1000; // Time in ms i.e. hours times minutes times seconds times ms
 
-  let contentFound: number = 0;
-
   const userContent = await context.reddit.getCommentsAndPostsByUser({
     username: userName,
     limit: 100,
@@ -127,22 +125,15 @@ async function userFailsChecks(context: Context, userName: string): Promise<bool
     sort: "new"
   }).all();
 
-  for (var item of userContent)
-  {
-    console.log(`Checking item in ${item.subredditName}.`)
-    if (subredditList.indexOf(item.subredditName.toLowerCase()) > -1
-      && Math.abs(new Date().getTime() - item.createdAt.getTime()) < timeDifference
-    )
-    {
-      console.log("Yes, found one!");
-      contentFound++;
-    }
-  }
+  const badSubItems = userContent.filter(item => subredditList.indexOf(item.subredditName.toLowerCase()) > -1 
+    && Math.abs(new Date().getTime() - item.createdAt.getTime()) < timeDifference);
+
+  console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits`);
 
   // Store record of last time checked
   await context.kvStore.put(`participation-lastcheck-${userName}`, new Date().getTime());
 
-  return (contentFound >= threshold);
+  return (badSubItems.length >= threshold);
 
 };
 
