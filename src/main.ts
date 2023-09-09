@@ -1,225 +1,208 @@
-import { Devvit, TriggerContext, Post, Comment } from '@devvit/public-api';
+import {Devvit, TriggerContext, Post, Comment} from "@devvit/public-api";
 
 Devvit.addSettings([
-  {
-    type: 'boolean',
-    name: 'enabled',
-    label: 'Enable app'
-  },
-  {
-    type: 'paragraph',
-    name: 'subreddits',
-    label: 'Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all'
-  },
-  {
-    type: 'number',
-    name: 'itemcount',
-    label: 'Number of posts and comments to meet threshold',
-    onValidate: async ({ value }) => {
-      if (!value || value < 1) {
-        return 'Threshold must be at least 1';
-      }
+    {
+        type: "boolean",
+        name: "enabled",
+        label: "Enable app",
     },
-  },
-  {
-    type: 'number',
-    name: 'daystomonitor',
-    label: 'Number of days to monitor',
-    onValidate: async ({ value }) => {
-      if (!value || value < 1) {
-        return 'Days to monitor must be at least 1';
-      }
+    {
+        type: "paragraph",
+        name: "subreddits",
+        label: "Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all",
     },
-  },
-  {
-    type: 'paragraph',
-    name: 'banmessage',
-    label: 'Enter a ban reason to send to users'
-  },
-  {
-    type: 'string',
-    name: 'bannote',
-    label: 'Enter a note to put in the ban log (optional)'
-  },
-  {
-    type: 'boolean',
-    name: 'exemptapproveduser',
-    label: 'Exempt approved users'
-  },
+    {
+        type: "number",
+        name: "itemcount",
+        label: "Number of posts and comments to meet threshold",
+        onValidate: async ({value}) => {
+            if (!value || value < 1) {
+                return "Threshold must be at least 1";
+            }
+        },
+    },
+    {
+        type: "number",
+        name: "daystomonitor",
+        label: "Number of days to monitor",
+        onValidate: async ({value}) => {
+            if (!value || value < 1) {
+                return "Days to monitor must be at least 1";
+            }
+        },
+    },
+    {
+        type: "paragraph",
+        name: "banmessage",
+        label: "Enter a ban reason to send to users",
+    },
+    {
+        type: "string",
+        name: "bannote",
+        label: "Enter a note to put in the ban log (optional)",
+    },
+    {
+        type: "boolean",
+        name: "exemptapproveduser",
+        label: "Exempt approved users",
+    },
 ]);
 
-async function userFailsChecks(context: TriggerContext, userName: string): Promise<boolean>
-{
-  const hiveProtectEnabled = await context.settings.get<boolean>('enabled');
-  if (!hiveProtectEnabled)
-  {
-    console.log("Hive Protector not enabled, quitting");
-    return false;
-  }
+async function userFailsChecks (context: TriggerContext, userName: string): Promise<boolean> {
+    const hiveProtectEnabled = await context.settings.get<boolean>("enabled");
+    if (!hiveProtectEnabled) {
+        console.log("Hive Protector not enabled, quitting");
+        return false;
+    }
 
-  // Get main config and quit if not defined properly.
-  const subReddits = await context.settings.get<string>('subreddits');
-  if (!subReddits)
-  {
-    console.log("Subreddit list not defined.");
-    return false;
-  }
+    // Get main config and quit if not defined properly.
+    const subReddits = await context.settings.get<string>("subreddits");
+    if (!subReddits) {
+        console.log("Subreddit list not defined.");
+        return false;
+    }
 
-  // Convert into an array of lower-case individual sub names
-  var subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
+    // Convert into an array of lower-case individual sub names
+    const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
 
-  const threshold = await context.settings.get<number>('itemcount');
-  const daysToMonitor = await context.settings.get<number>('daystomonitor');
-  if (!threshold || !daysToMonitor)
-  {
-    console.log("Threshold or Days to Monitor not defined");
-    return false;
-  }
+    const threshold = await context.settings.get<number>("itemcount");
+    const daysToMonitor = await context.settings.get<number>("daystomonitor");
+    if (!threshold || !daysToMonitor) {
+        console.log("Threshold or Days to Monitor not defined");
+        return false;
+    }
 
-  const subreddit = await context.reddit.getSubredditById(context.subredditId);
+    const subreddit = await context.reddit.getSubredditById(context.subredditId);
 
-  // Is user a moderator?
-  const modCheck = await subreddit.getModerators({
-    username: userName
-  }).all();
-
-  if (modCheck.length > 0)
-  {
-    console.log(`${userName} is a moderator of /r/${subreddit.name}, quitting`);
-    return false;
-  }
-
-  // Is user an approved user?
-  const exemptApprovedUsers = await context.settings.get<boolean>('exemptapproveduser');
-  console.log(`Should exempt approved users: ${exemptApprovedUsers}`);
-  if (exemptApprovedUsers)
-  {
-    const approvedCheck = await subreddit.getApprovedUsers({
-      username: userName
+    // Is user a moderator?
+    const modCheck = await subreddit.getModerators({
+        username: userName,
     }).all();
 
-    if (approvedCheck.length > 0)
-    {
-      console.log(`${userName} is an approved user of /r/${subreddit.name}, quitting`);
-      return false;
+    if (modCheck.length > 0) {
+        console.log(`${userName} is a moderator of /r/${subreddit.name}, quitting`);
+        return false;
     }
-  }
 
-  const timeBetweenChecks = 60 * 60 * 1000; // One hour i.e. 60 minutes, 60 seconds, 1000 ms
+    // Is user an approved user?
+    const exemptApprovedUsers = await context.settings.get<boolean>("exemptapproveduser");
+    if (exemptApprovedUsers) {
+        const approvedCheck = await subreddit.getApprovedUsers({
+            username: userName,
+        }).all();
 
-  var lastCheckDate =  await context.kvStore.get<number>(`participation-lastcheck-${userName}`);
-  if (lastCheckDate)
-  {
-    console.log(`Last check on ${userName} was at ${new Date(lastCheckDate)}`);
-    if (lastCheckDate && Math.abs(new Date().getTime() - lastCheckDate) < timeBetweenChecks)
-    {
-      console.log(`Last check on ${userName} was within TTL period, quitting`);
-      return false;
+        if (approvedCheck.length > 0) {
+            console.log(`${userName} is an approved user of /r/${subreddit.name}, quitting`);
+            return false;
+        }
     }
-  }
-  else
-    console.log(`Have never checked ${userName}.`);
 
-  var wasPreviouslyBanned = await context.kvStore.get<boolean>(`participation-prevbanned-${userName}`);
-  if (wasPreviouslyBanned)
-  {
-    console.log(`User ${userName} was previously banned, quitting`);
-    return false;
-  }
+    const timeBetweenChecks = 60 * 60 * 1000; // One hour i.e. 60 minutes, 60 seconds, 1000 ms
 
-  const timeDifference = daysToMonitor * 24 * 60 * 60 * 1000; // Time in ms i.e. hours times minutes times seconds times ms
+    const lastCheckDate = await context.kvStore.get<number>(`participation-lastcheck-${userName}`);
+    if (lastCheckDate) {
+        if (lastCheckDate && Math.abs(new Date().getTime() - lastCheckDate) < timeBetweenChecks) {
+            console.log(`Last check on ${userName} was within TTL period, quitting`);
+            return false;
+        }
+    } else {
+        console.log(`Have never checked ${userName}.`);
+    }
 
-  const userContent = await context.reddit.getCommentsAndPostsByUser({
-    username: userName,
-    limit: 100,
-    pageSize: 100,
-    sort: "new"
-  }).all();
+    const wasPreviouslyBanned = await context.kvStore.get<boolean>(`participation-prevbanned-${userName}`);
+    if (wasPreviouslyBanned) {
+        console.log(`User ${userName} was previously banned, quitting`);
+        return false;
+    }
 
-  const badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase()) 
+    const timeDifference = daysToMonitor * 24 * 60 * 60 * 1000; // Time in ms i.e. hours times minutes times seconds times ms
+
+    const userContent = await context.reddit.getCommentsAndPostsByUser({
+        username: userName,
+        limit: 100,
+        pageSize: 100,
+        sort: "new",
+    }).all();
+
+    const badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase())
     && Math.abs(new Date().getTime() - item.createdAt.getTime()) < timeDifference);
 
-  console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits`);
+    console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits`);
 
-  // Store record of last time checked
-  await context.kvStore.put(`participation-lastcheck-${userName}`, new Date().getTime());
+    // Store record of last time checked
+    await context.kvStore.put(`participation-lastcheck-${userName}`, new Date().getTime());
 
-  return (badSubItems.length >= threshold);
-
-};
-
-async function banUser(context: TriggerContext, userName: string, subName: string): Promise<void>
-{
-  const banMessage = await context.settings.get<string>('banmessage');
-  const banNote = await context.settings.get<string>('bannote');
-
-  var banReason: string;
-  if (banNote && banNote.length > 0)
-    banReason = 'Hive Protector: ' + banNote
-  else
-    banReason = 'Banned by Hive Protector';
-
-  await context.reddit.banUser({
-    username: userName,
-    reason: banReason,
-    message: banMessage,
-    subredditName: subName
-  });
-
-  console.log(`Banned ${userName} from ${subName}`);
+    return badSubItems.length >= threshold;
 }
 
-async function processEvent(item: Post | Comment, context: TriggerContext): Promise<void>
-{
-  const userName = item.authorName;
+async function banUser (context: TriggerContext, userName: string, subName: string): Promise<void> {
+    const banMessage = await context.settings.get<string>("banmessage");
+    const banNote = await context.settings.get<string>("bannote");
 
-  var shouldBan = await userFailsChecks(context, userName);
+    let banReason: string;
+    if (banNote && banNote.length > 0) {
+        banReason = `Hive Protector: ${banNote}`;
+    } else {
+        banReason = "Banned by Hive Protector";
+    }
 
-  if (!shouldBan)
-    return;
+    await context.reddit.banUser({
+        username: userName,
+        reason: banReason,
+        message: banMessage,
+        subredditName: subName,
+    });
 
-  await banUser(context, userName, item.subredditName);
+    console.log(`Banned ${userName} from ${subName}`);
+}
 
-  await context.kvStore.put(`participation-prevbanned-${userName}`, true);
+async function processEvent (item: Post | Comment, context: TriggerContext): Promise<void> {
+    const userName = item.authorName;
 
-  await item.remove(true);
-  console.log(`Removed item ${item.id}`);
+    const shouldBan = await userFailsChecks(context, userName);
+
+    if (!shouldBan) {
+        return;
+    }
+
+    await banUser(context, userName, item.subredditName);
+
+    await context.kvStore.put(`participation-prevbanned-${userName}`, true);
+
+    await item.remove(true);
+    console.log(`Removed item ${item.id}`);
 }
 
 Devvit.addTrigger({
-  event: 'PostSubmit',
-  async onEvent(event, context) {
+    event: "PostSubmit",
+    async onEvent (event, context) {
+        if (!event.post) {
+            console.log("A new post was created, but is undefined");
+            return;
+        }
 
-    if (!event.post)
-    {
-      console.log("A new post was created, but is undefined");
-      return;
-    }
+        const post = await context.reddit.getPostById(event.post.id);
 
-    const post = await context.reddit.getPostById(event.post.id);
-
-    await processEvent(post, context);
-  }
+        await processEvent(post, context);
+    },
 });
 
 Devvit.addTrigger({
-  event: 'CommentSubmit',
-  async onEvent(event, context) {
+    event: "CommentSubmit",
+    async onEvent (event, context) {
+        if (!event.comment) {
+            console.log("A new comment was created, but is undefined");
+            return;
+        }
+        const comment = await context.reddit.getCommentById(event.comment.id);
 
-    if (!event.comment)
-    {
-      console.log("A new comment was created, but is undefined");
-      return;
-    }
-    const comment = await context.reddit.getCommentById(event.comment.id);
-    
-    await processEvent(comment, context);
-  }
+        await processEvent(comment, context);
+    },
 });
 
 Devvit.configure({
-  redditAPI: true,
-  kvStore: true
-})
+    redditAPI: true,
+    kvStore: true,
+});
 
 export default Devvit;
