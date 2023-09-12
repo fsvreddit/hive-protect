@@ -9,7 +9,8 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/public-api": "0.10.4"
+    "@devvit/public-api": "0.10.4",
+    "date-fns": "^2.30.0"
   },
   "devDependencies": {
     "@devvit/tsconfig": "0.10.4",

@@ -1,4 +1,5 @@
 import {Devvit, TriggerContext, Post, Comment} from "@devvit/public-api";
+import {addDays, addHours} from "date-fns";
 
 Devvit.addSettings([
     {
@@ -97,12 +98,10 @@ async function userFailsChecks (context: TriggerContext, userName: string): Prom
         }
     }
 
-    const timeBetweenChecks = 60 * 60 * 1000; // One hour i.e. 60 minutes, 60 seconds, 1000 ms
-
     const lastCheckDate = await context.kvStore.get<number>(`participation-lastcheck-${userName}`);
     if (lastCheckDate) {
-        if (lastCheckDate && Math.abs(new Date().getTime() - lastCheckDate) < timeBetweenChecks) {
-            console.log(`Last check on ${userName} was within TTL period, quitting`);
+        if (new Date(lastCheckDate) > addHours(new Date(), -1)) {
+            console.log(`Last check on ${userName} was within the last hour, quitting`);
             return false;
         }
     } else {
@@ -115,8 +114,6 @@ async function userFailsChecks (context: TriggerContext, userName: string): Prom
         return false;
     }
 
-    const timeDifference = daysToMonitor * 24 * 60 * 60 * 1000; // Time in ms i.e. hours times minutes times seconds times ms
-
     const userContent = await context.reddit.getCommentsAndPostsByUser({
         username: userName,
         limit: 100,
@@ -125,7 +122,7 @@ async function userFailsChecks (context: TriggerContext, userName: string): Prom
     }).all();
 
     const badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase())
-    && Math.abs(new Date().getTime() - item.createdAt.getTime()) < timeDifference);
+        && item.createdAt > addDays(new Date(), -daysToMonitor));
 
     console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits`);
 
