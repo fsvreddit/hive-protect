@@ -132,10 +132,6 @@
                 "SwitchCase": 0
             }
         ],
-        "linebreak-style": [
-            "error",
-            "unix"
-        ],
         "no-extra-parens": [
             "error",
             "all",
