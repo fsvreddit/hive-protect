@@ -3,11 +3,6 @@ import {addDays, addHours} from "date-fns";
 
 Devvit.addSettings([
     {
-        type: "boolean",
-        name: "enabled",
-        label: "Enable app",
-    },
-    {
         type: "paragraph",
         name: "subreddits",
         label: "Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all",
@@ -50,12 +45,6 @@ Devvit.addSettings([
 ]);
 
 async function userFailsChecks (context: TriggerContext, userName: string): Promise<boolean> {
-    const hiveProtectEnabled = await context.settings.get<boolean>("enabled");
-    if (!hiveProtectEnabled) {
-        console.log("Hive Protector not enabled, quitting");
-        return false;
-    }
-
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
