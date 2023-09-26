@@ -12,6 +12,7 @@ Devvit.addSettings([
         type: "number",
         name: "itemcount",
         label: "Number of posts and comments to meet threshold",
+        helpText: "User must have at least this many posts/comments in 'bad' subreddits to result in a removal/ban",
         onValidate: async ({value}) => {
             if (!value || value < 1) {
                 return "Threshold must be at least 1";
@@ -22,6 +23,7 @@ Devvit.addSettings([
         type: "number",
         name: "daystomonitor",
         label: "Number of days to monitor",
+        helpText: "Only comments within this number of days will be counted",
         onValidate: async ({value}) => {
             if (!value || value < 1) {
                 return "Days to monitor must be at least 1";
@@ -31,7 +33,7 @@ Devvit.addSettings([
     {
         type: "paragraph",
         name: "banmessage",
-        label: "Enter a ban reason to send to users",
+        label: "Enter a ban message to send to users",
     },
     {
         type: "string",
@@ -42,6 +44,7 @@ Devvit.addSettings([
         type: "boolean",
         name: "exemptapproveduser",
         label: "Exempt approved users",
+        helpText: "If this option is selected, approved users will not be checked.",
     },
 ]);
 
