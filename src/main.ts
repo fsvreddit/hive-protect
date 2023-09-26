@@ -1,5 +1,6 @@
 import {Devvit, TriggerContext, Post, Comment} from "@devvit/public-api";
 import {addDays, addHours} from "date-fns";
+import {isModerator, isContributor} from "devvit-helpers";
 
 Devvit.addSettings([
     {
@@ -44,7 +45,30 @@ Devvit.addSettings([
     },
 ]);
 
-async function userFailsChecks (context: TriggerContext, userName: string): Promise<boolean> {
+async function userApproved (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
+    const exemptApprovedUsers = await context.settings.get<boolean>("exemptapproveduser");
+    if (exemptApprovedUsers) {
+        return isContributor(context.reddit, subName, userName);
+    } else {
+        return false;
+    }
+}
+
+async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
+    const lastCheckDate = await context.kvStore.get<number>(`participation-lastcheck-${userName}`);
+    if (lastCheckDate) {
+        return new Date(lastCheckDate) > addHours(new Date(), -1);
+    } else {
+        return false;
+    }
+}
+
+async function userWasPreviouslyBanned (context: TriggerContext, userName: string): Promise<boolean> {
+    const wasPreviouslyBanned = await context.kvStore.get<boolean>(`participation-prevbanned-${userName}`);
+    return wasPreviouslyBanned ?? false;
+}
+
+async function userFailsChecks (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
@@ -62,44 +86,15 @@ async function userFailsChecks (context: TriggerContext, userName: string): Prom
         return false;
     }
 
-    const subreddit = await context.reddit.getSubredditById(context.subredditId);
+    const reasonsToSkipChecks = await Promise.all([
+        isModerator(context.reddit, subName, userName),
+        userApproved(context, subName, userName),
+        lastCheckTooRecent(context, userName),
+        userWasPreviouslyBanned(context, userName),
+    ]);
 
-    // Is user a moderator?
-    const modCheck = await subreddit.getModerators({
-        username: userName,
-    }).all();
-
-    if (modCheck.length > 0) {
-        console.log(`${userName} is a moderator of /r/${subreddit.name}, quitting`);
-        return false;
-    }
-
-    // Is user an approved user?
-    const exemptApprovedUsers = await context.settings.get<boolean>("exemptapproveduser");
-    if (exemptApprovedUsers) {
-        const approvedCheck = await subreddit.getApprovedUsers({
-            username: userName,
-        }).all();
-
-        if (approvedCheck.length > 0) {
-            console.log(`${userName} is an approved user of /r/${subreddit.name}, quitting`);
-            return false;
-        }
-    }
-
-    const lastCheckDate = await context.kvStore.get<number>(`participation-lastcheck-${userName}`);
-    if (lastCheckDate) {
-        if (new Date(lastCheckDate) > addHours(new Date(), -1)) {
-            console.log(`Last check on ${userName} was within the last hour, quitting`);
-            return false;
-        }
-    } else {
-        console.log(`Have never checked ${userName}.`);
-    }
-
-    const wasPreviouslyBanned = await context.kvStore.get<boolean>(`participation-prevbanned-${userName}`);
-    if (wasPreviouslyBanned) {
-        console.log(`User ${userName} was previously banned, quitting`);
+    // If any check returns "True", user isn't eligible to be checked.
+    if (reasonsToSkipChecks.includes(true)) {
         return false;
     }
 
@@ -126,7 +121,7 @@ async function banUser (context: TriggerContext, userName: string, subName: stri
     const banNote = await context.settings.get<string>("bannote");
 
     let banReason: string;
-    if (banNote && banNote.length > 0) {
+    if (banNote) {
         banReason = `Hive Protector: ${banNote}`;
     } else {
         banReason = "Banned by Hive Protector";
@@ -145,17 +140,18 @@ async function banUser (context: TriggerContext, userName: string, subName: stri
 async function processEvent (item: Post | Comment, context: TriggerContext): Promise<void> {
     const userName = item.authorName;
 
-    const shouldBan = await userFailsChecks(context, userName);
+    const shouldBan = await userFailsChecks(context, item.subredditName, userName);
 
     if (!shouldBan) {
         return;
     }
 
-    await banUser(context, userName, item.subredditName);
+    await Promise.all([
+        banUser(context, userName, item.subredditName),
+        context.kvStore.put(`participation-prevbanned-${userName}`, true),
+        item.remove(true),
+    ]);
 
-    await context.kvStore.put(`participation-prevbanned-${userName}`, true);
-
-    await item.remove(true);
     console.log(`Removed item ${item.id}`);
 }
 
@@ -180,6 +176,7 @@ Devvit.addTrigger({
             console.log("A new comment was created, but is undefined");
             return;
         }
+
         const comment = await context.reddit.getCommentById(event.comment.id);
 
         await processEvent(comment, context);
