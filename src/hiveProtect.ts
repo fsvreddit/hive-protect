@@ -1,31 +1,34 @@
 import {TriggerContext, Post, Comment} from "@devvit/public-api";
 import {addDays, addHours} from "date-fns";
-import {isModerator, isContributor} from "devvit-helpers";
+import {isModerator, isContributor} from "./utility.js";
 
 async function userApproved (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
     const exemptApprovedUsers = await context.settings.get<boolean>("exemptapproveduser");
     if (exemptApprovedUsers) {
-        return isContributor(context.reddit, subName, userName);
+        return isContributor(context, subName, userName);
     } else {
         return false;
     }
 }
 
 async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
-    const lastCheckDate = await context.kvStore.get<number>(`participation-lastcheck-${userName}`);
-    if (lastCheckDate) {
-        return new Date(lastCheckDate) > addHours(new Date(), -1);
-    } else {
-        return false;
-    }
+    const recentCheck = await context.redis.get(`participation-recentcheck-${userName}`);
+    return recentCheck !== undefined && recentCheck !== "";
 }
 
 async function userWasPreviouslyBanned (context: TriggerContext, userName: string): Promise<boolean> {
-    const wasPreviouslyBanned = await context.kvStore.get<boolean>(`participation-prevbanned-${userName}`);
-    return wasPreviouslyBanned ?? false;
+    const wasPreviouslyBanned = await context.redis.get(`participation-prevbanned-${userName}`);
+    return wasPreviouslyBanned !== undefined && wasPreviouslyBanned !== "";
 }
 
 async function userFailsChecks (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
+    // Shortcut most likely reason for skipping before even retrieving config.
+    const wasLastCheckTooRecent = await lastCheckTooRecent(context, userName);
+    if (wasLastCheckTooRecent) {
+        console.log(`Most recent check on ${userName} was too recent. Quitting.`);
+        return false;
+    }
+
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
@@ -43,12 +46,14 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
         return false;
     }
 
+    // Other reasons for skipping
     const reasonsToSkipChecks = await Promise.all([
-        isModerator(context.reddit, subName, userName),
+        isModerator(context, subName, userName),
         userApproved(context, subName, userName),
-        lastCheckTooRecent(context, userName),
         userWasPreviouslyBanned(context, userName),
     ]);
+
+    console.log(reasonsToSkipChecks);
 
     // If any check returns "True", user isn't eligible to be checked.
     if (reasonsToSkipChecks.includes(true)) {
@@ -65,10 +70,11 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
     const badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase())
         && item.createdAt > addDays(new Date(), -daysToMonitor));
 
-    console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits`);
+    console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits for ${userName}`);
 
     // Store record of last time checked
-    await context.kvStore.put(`participation-lastcheck-${userName}`, new Date().getTime());
+    const now = new Date().getTime();
+    await context.redis.set(`participation-recentcheck-${userName}`, now.toString(), {expiration: addHours(now, 1)});
 
     return badSubItems.length >= threshold;
 }
@@ -105,7 +111,7 @@ export async function processEvent (item: Post | Comment, context: TriggerContex
 
     await Promise.all([
         banUser(context, userName, item.subredditName),
-        context.kvStore.put(`participation-prevbanned-${userName}`, true),
+        context.redis.set(`participation-prevbanned-${userName}`, "true"),
         item.remove(true),
     ]);
 

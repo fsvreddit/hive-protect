@@ -75,9 +75,55 @@ Devvit.addTrigger({
     },
 });
 
+Devvit.addSchedulerJob({
+    name: "redisMigration",
+    onRun: async (_, context) => {
+        console.log("kvStore to Redis migration in progress");
+
+        const keys = await context.kvStore.list();
+        const lastCheckKeys = keys.filter(key => key.startsWith("participation-lastcheck"));
+
+        if (lastCheckKeys.length === 0) {
+            console.log("Redis migration complete. Removing scheduled jobs.");
+            const currentJobs = await context.scheduler.listJobs();
+            for (const job of currentJobs) {
+                console.log("Deleted a job");
+                await context.scheduler.cancelJob(job.id);
+            }
+            await context.redis.set("redis-migration-complete", "true");
+        }
+
+        // Delete a batch of "Last Check" keys.
+        const keysToRemove = lastCheckKeys.slice(0, 200);
+        await Promise.all(keysToRemove.map(key => context.kvStore.delete(key)));
+        console.log(`Removed ${keysToRemove.length} keys from kvStore. ${lastCheckKeys.length - keysToRemove.length} keys still to remove.`);
+    },
+});
+
+Devvit.addTrigger({
+    event: "AppUpgrade",
+    async onEvent (_, context) {
+        const currentJobs = await context.scheduler.listJobs();
+        for (const job of currentJobs) {
+            console.log("Deleted a job");
+            await context.scheduler.cancelJob(job.id);
+        }
+
+        const redisMigrationComplete = await context.redis.get("redis-migration-complete");
+        if (redisMigrationComplete !== undefined) {
+            // Schedule job to remove legacy "last checked" keys
+            await context.scheduler.runJob({
+                cron: "* * * * *", // Every minute while job exists
+                name: "redisMigration",
+            });
+        }
+    },
+});
+
 Devvit.configure({
     redditAPI: true,
     kvStore: true,
+    redis: true,
 });
 
 export default Devvit;
