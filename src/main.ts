@@ -12,7 +12,7 @@ Devvit.addSettings([
         name: "itemcount",
         label: "Number of posts and comments to meet threshold",
         helpText: "User must have at least this many posts/comments in 'bad' subreddits to result in a removal/ban",
-        onValidate: async ({value}) => {
+        onValidate: ({value}) => {
             if (!value || value < 1) {
                 return "Threshold must be at least 1";
             }
@@ -23,7 +23,7 @@ Devvit.addSettings([
         name: "daystomonitor",
         label: "Number of days to monitor",
         helpText: "Only comments within this number of days will be counted",
-        onValidate: async ({value}) => {
+        onValidate: ({value}) => {
             if (!value || value < 1) {
                 return "Days to monitor must be at least 1";
             }
@@ -86,10 +86,7 @@ Devvit.addSchedulerJob({
         if (lastCheckKeys.length === 0) {
             console.log("Redis migration complete. Removing scheduled jobs.");
             const currentJobs = await context.scheduler.listJobs();
-            for (const job of currentJobs) {
-                console.log("Deleted a job");
-                await context.scheduler.cancelJob(job.id);
-            }
+            await Promise.all(currentJobs.map(job => context.scheduler.cancelJob(job.id)));
             await context.redis.set("redis-migration-complete", "true");
         }
 
@@ -104,10 +101,7 @@ Devvit.addTrigger({
     event: "AppUpgrade",
     async onEvent (_, context) {
         const currentJobs = await context.scheduler.listJobs();
-        for (const job of currentJobs) {
-            console.log("Deleted a job");
-            await context.scheduler.cancelJob(job.id);
-        }
+        await Promise.all(currentJobs.map(job => context.scheduler.cancelJob(job.id)));
 
         const redisMigrationComplete = await context.redis.get("redis-migration-complete");
         if (redisMigrationComplete !== undefined) {

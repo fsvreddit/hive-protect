@@ -27,6 +27,7 @@
         "keyword-spacing": "error",
         "new-parens": "error",
         "no-array-constructor": "error",
+        "no-await-in-loop": "error",
         "no-console": 0,
         "no-implied-eval": "error",
         "no-multi-spaces": "error",
@@ -40,8 +41,8 @@
         "prefer-numeric-literals": "error",
         "prefer-rest-params": "error",
         "prefer-template": "error",
-        "require-await": "off",
-        "@typescript-eslint/require-await": "off",
+        "require-await": "error",
+        "@typescript-eslint/require-await": "error",
         "space-infix-ops": "error",
         "array-bracket-newline": [
             "error",
@@ -129,7 +130,7 @@
             4,
             {
                 "VariableDeclarator": "first",
-                "SwitchCase": 0
+                "SwitchCase": 1
             }
         ],
         "no-extra-parens": [
