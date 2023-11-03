@@ -9,11 +9,11 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/public-api": "0.10.8",
+    "@devvit/public-api": "0.10.9",
     "date-fns": "^2.30.0"
   },
   "devDependencies": {
-    "@devvit/tsconfig": "0.10.8",
+    "@devvit/tsconfig": "0.10.9",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.48.0",
