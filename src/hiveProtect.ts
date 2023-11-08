@@ -1,6 +1,50 @@
-import {TriggerContext, Post, Comment} from "@devvit/public-api";
+import {TriggerContext, Post, Comment, OnTriggerEvent} from "@devvit/public-api";
+import {CommentSubmit, PostSubmit} from "@devvit/protos";
 import {addDays, addHours} from "date-fns";
 import {isModerator, isContributor} from "./utility.js";
+
+export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<CommentSubmit | PostSubmit>, context: TriggerContext) {
+    if (!event.author || !event.author.name) {
+        console.log("Author not defined");
+        return;
+    }
+
+    // Shortcut most likely reason for skipping before even retrieving comment or config.
+    const wasLastCheckTooRecent = await lastCheckTooRecent(context, event.author.name);
+    if (wasLastCheckTooRecent) {
+        console.log(`Most recent check on ${event.author.name} was too recent. Quitting.`);
+        return;
+    }
+
+    const shouldBan = await userFailsChecks(context, event.author.name);
+
+    if (!shouldBan) {
+        return;
+    }
+
+    let targetId: string | undefined;
+
+    if (event.type === "CommentSubmit") {
+        const commentEvent = event as OnTriggerEvent<CommentSubmit>;
+        if (!commentEvent.comment) {
+            return;
+        }
+        targetId = commentEvent.comment.id;
+    } else {
+        if (!event.post) {
+            return;
+        }
+        targetId = event.post.id;
+    }
+
+    await Promise.all([
+        banUser(context, event.author.name),
+        context.redis.set(`participation-prevbanned-${event.author.name}`, "true"),
+        context.reddit.remove(targetId, true),
+    ]);
+
+    console.log(`Removed item ${targetId}`);
+}
 
 async function userApproved (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
     const exemptApprovedUsers = await context.settings.get<boolean>("exemptapproveduser");
@@ -11,7 +55,7 @@ async function userApproved (context: TriggerContext, subName: string, userName:
     }
 }
 
-export async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
+async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
     const recentCheck = await context.redis.get(`participation-recentcheck-${userName}`);
     return recentCheck !== undefined && recentCheck !== "";
 }
@@ -21,7 +65,7 @@ async function userWasPreviouslyBanned (context: TriggerContext, userName: strin
     return wasPreviouslyBanned !== undefined && wasPreviouslyBanned !== "";
 }
 
-async function userFailsChecks (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
+async function userFailsChecks (context: TriggerContext, userName: string): Promise<boolean> {
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
@@ -65,9 +109,10 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
     if (failsChecks) {
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
         // true for most subs, so we only do these checks if the user was going to be banned otherwise.
+        const subreddit = await context.reddit.getCurrentSubreddit();
         const reasonsToSkipChecks = await Promise.all([
-            isModerator(context, subName, userName),
-            userApproved(context, subName, userName),
+            isModerator(context, subreddit.name, userName),
+            userApproved(context, subreddit.name, userName),
             userWasPreviouslyBanned(context, userName),
         ]);
 
@@ -85,9 +130,11 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
     return failsChecks;
 }
 
-async function banUser (context: TriggerContext, userName: string, subName: string): Promise<void> {
+async function banUser (context: TriggerContext, userName: string): Promise<void> {
     const banMessage = await context.settings.get<string>("banmessage");
     const banNote = await context.settings.get<string>("bannote");
+
+    const subreddit = await context.reddit.getCurrentSubreddit();
 
     let banReason: string;
     if (banNote) {
@@ -100,26 +147,8 @@ async function banUser (context: TriggerContext, userName: string, subName: stri
         username: userName,
         reason: banReason,
         message: banMessage,
-        subredditName: subName,
+        subredditName: subreddit.name,
     });
 
-    console.log(`Banned ${userName} from ${subName}`);
-}
-
-export async function processEvent (item: Post | Comment, context: TriggerContext): Promise<void> {
-    const userName = item.authorName;
-
-    const shouldBan = await userFailsChecks(context, item.subredditName, userName);
-
-    if (!shouldBan) {
-        return;
-    }
-
-    await Promise.all([
-        banUser(context, userName, item.subredditName),
-        context.redis.set(`participation-prevbanned-${userName}`, "true"),
-        item.remove(true),
-    ]);
-
-    console.log(`Removed item ${item.id}`);
+    console.log(`Banned ${userName} from ${subreddit.name}`);
 }

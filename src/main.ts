@@ -1,5 +1,5 @@
 import {Devvit} from "@devvit/public-api";
-import {lastCheckTooRecent, processEvent} from "./hiveProtect.js";
+import {handlePostOrCommentSubmitEvent} from "./hiveProtect.js";
 
 Devvit.addSettings([
     {
@@ -50,55 +50,8 @@ Devvit.addSettings([
 ]);
 
 Devvit.addTrigger({
-    event: "PostSubmit",
-    async onEvent (event, context) {
-        if (!event.post) {
-            console.log("A new post was created, but is undefined");
-            return;
-        }
-
-        if (!event.author || !event.author.name) {
-            console.log("Author not defined");
-            return;
-        }
-
-        // Shortcut most likely reason for skipping before even retrieving post or config.
-        const wasLastCheckTooRecent = await lastCheckTooRecent(context, event.author.name);
-        if (wasLastCheckTooRecent) {
-            console.log(`Most recent check on ${event.author.name} was too recent. Quitting.`);
-            return;
-        }
-
-        const post = await context.reddit.getPostById(event.post.id);
-
-        await processEvent(post, context);
-    },
-});
-
-Devvit.addTrigger({
-    event: "CommentSubmit",
-    async onEvent (event, context) {
-        if (!event.comment) {
-            console.log("A new comment was created, but is undefined");
-            return;
-        }
-
-        if (!event.author || !event.author.name) {
-            console.log("Author not defined");
-            return;
-        }
-
-        // Shortcut most likely reason for skipping before even retrieving comment or config.
-        const wasLastCheckTooRecent = await lastCheckTooRecent(context, event.author.name);
-        if (wasLastCheckTooRecent) {
-            console.log(`Most recent check on ${event.author.name} was too recent. Quitting.`);
-            return;
-        }
-
-        const comment = await context.reddit.getCommentById(event.comment.id);
-
-        await processEvent(comment, context);
-    },
+    events: ["PostSubmit", "CommentSubmit"],
+    onEvent: handlePostOrCommentSubmitEvent,
 });
 
 Devvit.addSchedulerJob({
