@@ -11,7 +11,7 @@ async function userApproved (context: TriggerContext, subName: string, userName:
     }
 }
 
-async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
+export async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
     const recentCheck = await context.redis.get(`participation-recentcheck-${userName}`);
     return recentCheck !== undefined && recentCheck !== "";
 }
@@ -22,13 +22,6 @@ async function userWasPreviouslyBanned (context: TriggerContext, userName: strin
 }
 
 async function userFailsChecks (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
-    // Shortcut most likely reason for skipping before even retrieving config.
-    const wasLastCheckTooRecent = await lastCheckTooRecent(context, userName);
-    if (wasLastCheckTooRecent) {
-        console.log(`Most recent check on ${userName} was too recent. Quitting.`);
-        return false;
-    }
-
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
@@ -39,27 +32,6 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
 
-    const threshold = await context.settings.get<number>("itemcount");
-    const daysToMonitor = await context.settings.get<number>("daystomonitor");
-    if (!threshold || !daysToMonitor) {
-        console.log("Threshold or Days to Monitor not defined");
-        return false;
-    }
-
-    // Other reasons for skipping
-    const reasonsToSkipChecks = await Promise.all([
-        isModerator(context, subName, userName),
-        userApproved(context, subName, userName),
-        userWasPreviouslyBanned(context, userName),
-    ]);
-
-    console.log(reasonsToSkipChecks);
-
-    // If any check returns "True", user isn't eligible to be checked.
-    if (reasonsToSkipChecks.includes(true)) {
-        return false;
-    }
-
     const userContent = await context.reddit.getCommentsAndPostsByUser({
         username: userName,
         limit: 100,
@@ -67,16 +39,43 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
         sort: "new",
     }).all();
 
-    const badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase())
-        && item.createdAt > addDays(new Date(), -daysToMonitor));
+    let badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase()));
+    let failsChecks: boolean | undefined;
+
+    if (badSubItems.length > 0) {
+        // Filter down further to check the configured thresholds. If there was nothing for the user,
+        // there is no point even getting these config values.
+        const threshold = await context.settings.get<number>("itemcount") ?? 6;
+        const daysToMonitor = await context.settings.get<number>("daystomonitor") ?? 28;
+        badSubItems = badSubItems.filter(item => item.createdAt > addDays(new Date(), -daysToMonitor));
+        failsChecks = badSubItems.length >= threshold;
+    } else {
+        failsChecks = false;
+    }
 
     console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits for ${userName}`);
 
+    if (failsChecks) {
+        // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
+        // true for most subs, so we only do these checks if the user was going to be banned otherwise.
+        const reasonsToSkipChecks = await Promise.all([
+            isModerator(context, subName, userName),
+            userApproved(context, subName, userName),
+            userWasPreviouslyBanned(context, userName),
+        ]);
+
+        // If any check returns "True", user isn't eligible to be checked.
+        if (reasonsToSkipChecks.includes(true)) {
+            console.log(`User ${userName} is not eligible for checks (mod, approved or prev banned)`);
+            failsChecks = false;
+        }
+    }
+
     // Store record of last time checked
     const now = new Date().getTime();
-    await context.redis.set(`participation-recentcheck-${userName}`, now.toString(), {expiration: addHours(now, 1)});
+    await context.redis.set(`participation-recentcheck-${userName}`, now.toString(), {expiration: addHours(now, 2)});
 
-    return badSubItems.length >= threshold;
+    return failsChecks;
 }
 
 async function banUser (context: TriggerContext, userName: string, subName: string): Promise<void> {

@@ -1,5 +1,5 @@
 import {Devvit} from "@devvit/public-api";
-import {processEvent} from "./hiveProtect.js";
+import {lastCheckTooRecent, processEvent} from "./hiveProtect.js";
 
 Devvit.addSettings([
     {
@@ -11,7 +11,8 @@ Devvit.addSettings([
         type: "number",
         name: "itemcount",
         label: "Number of posts and comments to meet threshold",
-        helpText: "User must have at least this many posts/comments in 'bad' subreddits to result in a removal/ban",
+        helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a removal/ban",
+        defaultValue: 6,
         onValidate: ({value}) => {
             if (!value || value < 1) {
                 return "Threshold must be at least 1";
@@ -23,6 +24,7 @@ Devvit.addSettings([
         name: "daystomonitor",
         label: "Number of days to monitor",
         helpText: "Only comments within this number of days will be counted",
+        defaultValue: 28,
         onValidate: ({value}) => {
             if (!value || value < 1) {
                 return "Days to monitor must be at least 1";
@@ -55,6 +57,18 @@ Devvit.addTrigger({
             return;
         }
 
+        if (!event.author || !event.author.name) {
+            console.log("Author not defined");
+            return;
+        }
+
+        // Shortcut most likely reason for skipping before even retrieving post or config.
+        const wasLastCheckTooRecent = await lastCheckTooRecent(context, event.author.name);
+        if (wasLastCheckTooRecent) {
+            console.log(`Most recent check on ${event.author.name} was too recent. Quitting.`);
+            return;
+        }
+
         const post = await context.reddit.getPostById(event.post.id);
 
         await processEvent(post, context);
@@ -66,6 +80,18 @@ Devvit.addTrigger({
     async onEvent (event, context) {
         if (!event.comment) {
             console.log("A new comment was created, but is undefined");
+            return;
+        }
+
+        if (!event.author || !event.author.name) {
+            console.log("Author not defined");
+            return;
+        }
+
+        // Shortcut most likely reason for skipping before even retrieving comment or config.
+        const wasLastCheckTooRecent = await lastCheckTooRecent(context, event.author.name);
+        if (wasLastCheckTooRecent) {
+            console.log(`Most recent check on ${event.author.name} was too recent. Quitting.`);
             return;
         }
 
