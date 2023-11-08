@@ -32,12 +32,19 @@ async function userFailsChecks (context: TriggerContext, subName: string, userNa
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
 
-    const userContent = await context.reddit.getCommentsAndPostsByUser({
-        username: userName,
-        limit: 100,
-        pageSize: 100,
-        sort: "new",
-    }).all();
+    let userContent: (Post | Comment)[] | undefined;
+    try {
+        userContent = await context.reddit.getCommentsAndPostsByUser({
+            username: userName,
+            limit: 100,
+            pageSize: 100,
+            sort: "new",
+        }).all();
+    } catch (error) {
+        console.log("Error retrieving user's posts or comments. Likely shadowbanned");
+        console.log(error);
+        userContent = [];
+    }
 
     let badSubItems = userContent.filter(item => subredditList.includes(item.subredditName.toLowerCase()));
     let failsChecks: boolean | undefined;
