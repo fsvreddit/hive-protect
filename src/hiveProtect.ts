@@ -9,13 +9,6 @@ export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<Comm
         return;
     }
 
-    // Shortcut most likely reason for skipping before even retrieving comment or config.
-    const wasLastCheckTooRecent = await lastCheckTooRecent(context, event.author.name);
-    if (wasLastCheckTooRecent) {
-        console.log(`Most recent check on ${event.author.name} was too recent. Quitting.`);
-        return;
-    }
-
     const shouldBan = await userFailsChecks(context, event.author.name);
 
     if (!shouldBan) {
@@ -66,6 +59,13 @@ async function userWasPreviouslyBanned (context: TriggerContext, userName: strin
 }
 
 async function userFailsChecks (context: TriggerContext, userName: string): Promise<boolean> {
+    // Shortcut most likely reason for skipping before even retrieving comment or config.
+    const wasLastCheckTooRecent = await lastCheckTooRecent(context, userName);
+    if (wasLastCheckTooRecent) {
+        console.log(`Most recent check on ${userName} was too recent. Quitting.`);
+        return false;
+    }
+
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
