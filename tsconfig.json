@@ -1,3 +1,18 @@
 {
-  "extends": "@devvit/tsconfig/devvit.tsconfig.json"
+    "extends": "@devvit/tsconfig/devvit.tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "nodenext",
+        "lib": ["ES2022", "WebWorker"],
+        "resolveJsonModule": true,
+        "declaration": true,
+        "outDir": "dist",
+        "strict": true,
+        "esModuleInterop": true,
+        "moduleResolution": "nodenext",
+    },
+    "exclude": [
+        "node_modules",
+        "dist",
+    ]
 }
