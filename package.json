@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@devvit/public-api": "0.10.10",
-    "date-fns": "^2.30.0"
+    "@types/lodash": "^4.14.202",
+    "date-fns": "^2.30.0",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@devvit/tsconfig": "0.10.10",
