@@ -33,7 +33,7 @@ export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<Comm
 
     await Promise.all([
         banUser(context, event.author.name, badSubs),
-        context.redis.set(`participation-prevbanned-${event.author.name}`, "true"),
+        context.redis.set(`participation-prevbanned-${event.author.name}`, new Date().getTime().toString()),
         context.reddit.remove(targetId, true),
     ]);
 
