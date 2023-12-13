@@ -35,13 +35,13 @@ Devvit.addSettings([
         type: "paragraph",
         name: "banmessage",
         label: "Enter a ban message to send to users",
-        helpText: "Placeholder found: {{sublist}}. This will be replaced with a comma-separated list of the matched subs",
+        helpText: "Placeholder supported: {{sublist}}. This will be replaced with a comma-separated list of the matched subs",
     },
     {
         type: "string",
         name: "bannote",
         label: "Enter a note to put in the ban log (optional)",
-        helpText: "Placeholder found: {{sublist}}. This will be replaced with a comma-separated list of the matched subs",
+        helpText: "Placeholder supported: {{sublist}}. This will be replaced with a comma-separated list of the matched subs",
     },
     {
         type: "boolean",
