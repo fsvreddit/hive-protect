@@ -12,9 +12,9 @@ Enable functionality: This app will not run if it has been disabled. You may wan
 
 **Number of days to monitor**: The app will only check a user's history back this many days. This can be used so that a user's old history is not held against them, or to ban only prolific users of "bad" subreddits.
 
-**Ban reason**: This is a message sent to the user when they are banned.
+**Ban reason**: This is a message sent to the user when they are banned. Supports placeholder {{sublist}} which will be replaced with a comma-separated list of "bad" subs found on the user's history.
 
-**Ban note**: This is a note to put in the mod log when a user is banned.
+**Ban note**: This is a note to put in the mod log when a user is banned. Supports placeholder {{sublist}} which will be replaced with a comma-separated list of "bad" subs found on the user's history.
 
 **Exempt Approved Users**: Allows you to exclude users who are approved submitters from checks
 

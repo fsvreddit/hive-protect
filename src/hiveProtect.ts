@@ -2,6 +2,7 @@ import {TriggerContext, Post, Comment, OnTriggerEvent} from "@devvit/public-api"
 import {CommentSubmit, PostSubmit} from "@devvit/protos";
 import {addDays, addHours} from "date-fns";
 import {isModerator, isContributor} from "./utility.js";
+import _ from "lodash";
 
 export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<CommentSubmit | PostSubmit>, context: TriggerContext) {
     if (!event.author || !event.author.name) {
@@ -9,9 +10,9 @@ export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<Comm
         return;
     }
 
-    const shouldBan = await userFailsChecks(context, event.author.name);
+    const badSubs = await problematicSubsFound(context, event.author.name);
 
-    if (!shouldBan) {
+    if (badSubs.length === 0) {
         return;
     }
 
@@ -31,8 +32,8 @@ export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<Comm
     }
 
     await Promise.all([
-        banUser(context, event.author.name),
-        context.redis.set(`participation-prevbanned-${event.author.name}`, "true"),
+        banUser(context, event.author.name, badSubs),
+        context.redis.set(`participation-prevbanned-${event.author.name}`, new Date().getTime().toString()),
         context.reddit.remove(targetId, true),
     ]);
 
@@ -58,19 +59,19 @@ async function userWasPreviouslyBanned (context: TriggerContext, userName: strin
     return wasPreviouslyBanned !== undefined && wasPreviouslyBanned !== "";
 }
 
-async function userFailsChecks (context: TriggerContext, userName: string): Promise<boolean> {
+async function problematicSubsFound (context: TriggerContext, userName: string): Promise<string[]> {
     // Shortcut most likely reason for skipping before even retrieving comment or config.
     const wasLastCheckTooRecent = await lastCheckTooRecent(context, userName);
     if (wasLastCheckTooRecent) {
         console.log(`Most recent check on ${userName} was too recent. Quitting.`);
-        return false;
+        return [];
     }
 
     // Get main config and quit if not defined properly.
     const subReddits = await context.settings.get<string>("subreddits");
     if (!subReddits) {
         console.log("Subreddit list not defined.");
-        return false;
+        return [];
     }
 
     // Convert into an array of lower-case individual sub names
@@ -127,11 +128,18 @@ async function userFailsChecks (context: TriggerContext, userName: string): Prom
     const now = new Date().getTime();
     await context.redis.set(`participation-recentcheck-${userName}`, now.toString(), {expiration: addHours(now, 2)});
 
-    return failsChecks;
+    if (failsChecks) {
+        return _.uniq(badSubItems.map(item => item.subredditName));
+    }
+
+    return [];
 }
 
-async function banUser (context: TriggerContext, userName: string): Promise<void> {
-    const banMessage = await context.settings.get<string>("banmessage");
+async function banUser (context: TriggerContext, userName: string, badSubs: string[]): Promise<void> {
+    let banMessage = await context.settings.get<string>("banmessage");
+    if (banMessage) {
+        banMessage = banMessage.replace("{{sublist}}", badSubs.join(", "));
+    }
     const banNote = await context.settings.get<string>("bannote");
 
     const subreddit = await context.reddit.getCurrentSubreddit();
@@ -140,12 +148,12 @@ async function banUser (context: TriggerContext, userName: string): Promise<void
     if (banNote) {
         banReason = `Hive Protector: ${banNote}`;
     } else {
-        banReason = "Banned by Hive Protector";
+        banReason = "Banned by Hive Protector. Matches in {{sublist}}";
     }
 
     await context.reddit.banUser({
         username: userName,
-        reason: banReason,
+        reason: banReason.replace("{{sublist}}", badSubs.join(", ")),
         message: banMessage,
         subredditName: subreddit.name,
     });
