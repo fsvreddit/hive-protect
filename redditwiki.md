@@ -37,7 +37,9 @@ The app will never ban a user based on content in the subreddit the app is insta
 This app uses the Community Apps platform's Key value store plugin to store very basic information about users checked.
 
 * The date and time that the app last checked a user, to support checking only once per hour
-* User names of users who have been previously banned by the app, to prevent inadvertent re-banning.
+* User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
+
+All data is automatically removed if the app is uninstalled.
 
 ## Feedback
 
