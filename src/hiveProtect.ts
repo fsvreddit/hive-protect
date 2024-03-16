@@ -1,40 +1,38 @@
-import {TriggerContext, Post, Comment, OnTriggerEvent} from "@devvit/public-api";
+import {TriggerContext, Post, Comment} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit} from "@devvit/protos";
 import {addDays, addHours} from "date-fns";
 import {isModerator, isContributor, getSubredditName, getAppName} from "./utility.js";
 import {AppSetting, PrevBanBehaviour} from "./settings.js";
 import _ from "lodash";
 
-export async function handlePostOrCommentSubmitEvent (event: OnTriggerEvent<CommentSubmit | PostSubmit>, context: TriggerContext) {
-    if (!event.author || !event.author.name) {
-        console.log("Author not defined");
+export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
+    if (!event.author || !event.author.name || !event.post) {
+        console.log("Event is not in the right state.");
         return;
     }
 
-    const badSubs = await problematicSubsFound(context, event.author.name);
+    await handlePostOrCommentSubmitEvent(event.post.id, event.author.name, context);
+}
+
+export async function handleCommentSubmitEvent (event: CommentSubmit, context: TriggerContext) {
+    if (!event.author || !event.author.name || !event.comment) {
+        console.log("Event is not in the right state.");
+        return;
+    }
+
+    await handlePostOrCommentSubmitEvent(event.comment.id, event.author.name, context);
+}
+
+export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
+    const badSubs = await problematicSubsFound(context, userName);
 
     if (badSubs.length === 0) {
         return;
     }
 
-    let targetId: string | undefined;
-
-    if (event.type === "CommentSubmit") {
-        const commentEvent = event as OnTriggerEvent<CommentSubmit>;
-        if (!commentEvent.comment) {
-            return;
-        }
-        targetId = commentEvent.comment.id;
-    } else {
-        if (!event.post) {
-            return;
-        }
-        targetId = event.post.id;
-    }
-
     await Promise.all([
-        banUser(context, event.author.name, badSubs),
-        context.redis.set(`participation-prevbanned-${event.author.name}`, new Date().getTime().toString()),
+        banUser(context, userName, badSubs),
+        context.redis.set(`participation-prevbanned-${userName}`, new Date().getTime().toString()),
         context.reddit.remove(targetId, true),
     ]);
 
