@@ -39,15 +39,6 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
     console.log(`Removed item ${targetId}`);
 }
 
-async function userApproved (context: TriggerContext, subName: string, userName: string): Promise<boolean> {
-    const exemptApprovedUsers = await context.settings.get<boolean>(AppSetting.ExemptApprovedUser);
-    if (exemptApprovedUsers) {
-        return isContributor(context, subName, userName);
-    } else {
-        return false;
-    }
-}
-
 async function lastCheckTooRecent (context: TriggerContext, userName: string): Promise<boolean> {
     const recentCheck = await context.redis.get(`participation-recentcheck-${userName}`);
     return recentCheck !== undefined && recentCheck !== "";
@@ -99,8 +90,10 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
         return [];
     }
 
+    const settings = await context.settings.getAll();
+
     // Get main config and quit if not defined properly.
-    const subReddits = await context.settings.get<string>(AppSetting.Subreddits);
+    const subReddits = settings[AppSetting.Subreddits] as string | undefined;
     if (!subReddits) {
         console.log("Subreddit list not defined.");
         return [];
@@ -130,8 +123,8 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
     if (badSubItems.length > 0) {
         // Filter down further to check the configured thresholds. If there was nothing for the user,
         // there is no point even getting these config values.
-        const threshold = await context.settings.get<number>(AppSetting.ItemCount) ?? 6;
-        const daysToMonitor = await context.settings.get<number>(AppSetting.DaysToMonitor) ?? 28;
+        const threshold = settings[AppSetting.ItemCount] as number ?? 6;
+        const daysToMonitor = settings[AppSetting.DaysToMonitor] as number ?? 28;
         badSubItems = badSubItems.filter(item => item.createdAt > addDays(new Date(), -daysToMonitor));
         failsChecks = badSubItems.length >= threshold;
 
@@ -141,7 +134,7 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
             const previousBan = await previousBanDate(context, userName);
             if (previousBan) {
                 console.log(`User was previously banned at ${previousBan.toISOString()}`);
-                const postBanBehaviour = await context.settings.get<string[]>(AppSetting.BehaviourIfPrevBan) ?? [PrevBanBehaviour.NeverReBan];
+                const postBanBehaviour = settings[AppSetting.BehaviourIfPrevBan] as string[] ?? [PrevBanBehaviour.NeverReBan];
 
                 switch (postBanBehaviour[0]) {
                     case PrevBanBehaviour.NeverReBan:
@@ -169,10 +162,12 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
         // true for most subs, so we only do these checks if the user was going to be banned otherwise.
         const subredditName = await getSubredditName(context);
-        const reasonsToSkipChecks = await Promise.all([
-            isModerator(context, subredditName, userName),
-            userApproved(context, subredditName, userName),
-        ]);
+        const skipChecksPromises: Promise<boolean>[] = [isModerator(context, subredditName, userName)];
+        if (settings[AppSetting.ExemptApprovedUser] as boolean ?? false) {
+            skipChecksPromises.push(isContributor(context, subredditName, userName));
+        }
+
+        const reasonsToSkipChecks = await Promise.all(skipChecksPromises);
 
         // If any check returns "True", user isn't eligible to be checked.
         if (reasonsToSkipChecks.includes(true)) {
@@ -193,15 +188,17 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
 }
 
 async function banUser (context: TriggerContext, userName: string, badSubs: string[]): Promise<void> {
-    let banMessage = await context.settings.get<string>(AppSetting.BanMessage);
+    const settings = await context.settings.getAll();
+
+    let banMessage = settings[AppSetting.BanMessage] as string | undefined;
     if (banMessage) {
         banMessage = banMessage.replace("{{sublist}}", badSubs.join(", "));
     }
-    const banNote = await context.settings.get<string>(AppSetting.BanNote);
+    const banNote = settings[AppSetting.BanNote] as string | undefined;
 
     const subredditName = await getSubredditName(context);
 
-    let banDuration = await context.settings.get<number>(AppSetting.BanDuration);
+    let banDuration = settings[AppSetting.BanDuration] as number | undefined;
     if (banDuration === 0) {
         banDuration = undefined;
     }
