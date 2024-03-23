@@ -36,7 +36,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "number",
                 name: AppSetting.ItemCount,
                 label: "Number of posts and comments to meet threshold",
-                helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a removal/ban",
+                helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a report/removal/ban",
                 defaultValue: 6,
                 onValidate: ({value}) => {
                     if (!value || value < 1) {
@@ -90,7 +90,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.BanMessage,
                 label: "Enter a ban message to send to users",
-                helpText: "Placeholders supported: {{sublist}}, {{authorname}}. This will be replaced with a comma-separated list of the matched subs",
+                helpText: "Placeholders supported: {{sublist}}, {{username}}. This will be replaced with a comma-separated list of the matched subs",
             },
             {
                 type: "string",
@@ -124,7 +124,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "string",
                 name: AppSetting.RemovalReasonTemplate,
                 label: "Leave a locked reply with a removal reason based on this template",
-                helpText: "Optional. If left blank, no reason will be left. Placeholders supported: {{sublist}}, {{authorname}}",
+                helpText: "Optional. If left blank, no reason will be left. Placeholders supported: {{sublist}}, {{username}}",
             },
         ],
     },

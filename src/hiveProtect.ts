@@ -45,7 +45,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
         let removalReason = settings[AppSetting.RemovalReasonTemplate] as string | undefined;
         if (removalReason) {
             removalReason = replaceAll(removalReason, "{{sublist}}", problematicSubsResult.badSubs.join(", "));
-            removalReason = replaceAll(removalReason, "{{authorname}}", userName);
+            removalReason = replaceAll(removalReason, "{{username}}", userName);
             const newComment = await context.reddit.submitComment({id: targetId, text: removalReason});
             const shouldSticky = targetId.startsWith(ThingPrefix.Post);
             await Promise.all([
@@ -261,7 +261,7 @@ async function banUser (context: TriggerContext, userName: string, badSubs: stri
     let banMessage = settings[AppSetting.BanMessage] as string | undefined;
     if (banMessage) {
         banMessage = banMessage.replace("{{sublist}}", badSubs.join(", "));
-        banMessage = banMessage.replace("{{authorname}}", userName);
+        banMessage = banMessage.replace("{{username}}", userName);
     }
     const banNote = settings[AppSetting.BanNote] as string | undefined;
 
