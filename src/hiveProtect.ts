@@ -95,12 +95,9 @@ async function previousBanDate (context: TriggerContext, userName: string): Prom
         return;
     }
 
-    try {
-        // Attempt to parse the value. This will work for any bans in recent versions of the app.
-        const banDate = new Date(parseInt(previousBanDateAsString));
+    const banDate = new Date(parseInt(previousBanDateAsString));
+    if (banDate) {
         return banDate;
-    } catch {
-        console.log(`Error converting value ${previousBanDateAsString} found in Redis. Falling back on mod log.`);
     }
 
     // Very early versions of this app stored a simple boolean in the KV Store. Attempt to determine via mod log.
@@ -111,6 +108,7 @@ async function previousBanDate (context: TriggerContext, userName: string): Prom
         subredditName,
         moderatorUsernames: [appName],
         type: "banuser",
+        limit: 1000,
     }).all();
 
     modLog = modLog.filter(logEntry => logEntry.target && logEntry.target.author && logEntry.target.author === userName);
