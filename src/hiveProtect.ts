@@ -78,17 +78,10 @@ interface ProblematicSubsResult {
 }
 
 async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
-    const redisKey = `participation-recentcheck-${userName}`;
+    const redisKey = `participation-recentresult-${userName}`;
     const recentCheckValue = await context.redis.get(redisKey);
 
     if (!recentCheckValue) {
-        return;
-    }
-
-    // Check to see if the value parses to an integer. If so, this is the previous behaviour
-    // so force a recheck.
-    const numericValue = parseInt(recentCheckValue);
-    if (!Number.isNaN(numericValue)) {
         return;
     }
 
@@ -250,7 +243,7 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
 
     // Store record of last time checked
     const now = new Date().getTime();
-    await context.redis.set(`participation-recentcheck-${userName}`, JSON.stringify(result), {expiration: addHours(now, 2)});
+    await context.redis.set(`participation-recentresult-${userName}`, JSON.stringify(result), {expiration: addHours(now, 2)});
 
     return result;
 }
