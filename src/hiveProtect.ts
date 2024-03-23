@@ -1,6 +1,6 @@
 import {TriggerContext, Post, Comment} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit} from "@devvit/protos";
-import {addDays, addHours} from "date-fns";
+import {addHours, subDays} from "date-fns";
 import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix} from "./utility.js";
 import {AppSetting, PrevBanBehaviour} from "./settings.js";
 import _ from "lodash";
@@ -174,7 +174,7 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
         // there is no point even getting these config values.
         const threshold = settings[AppSetting.ItemCount] as number ?? 6;
         const daysToMonitor = settings[AppSetting.DaysToMonitor] as number ?? 28;
-        badSubItems = badSubItems.filter(item => item.createdAt > addDays(new Date(), -daysToMonitor));
+        badSubItems = badSubItems.filter(item => item.createdAt > subDays(new Date(), daysToMonitor));
         failsChecks = badSubItems.length >= threshold;
 
         if (failsChecks) {
