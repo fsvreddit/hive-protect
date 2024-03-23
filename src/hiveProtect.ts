@@ -25,7 +25,7 @@ export async function handleCommentSubmitEvent (event: CommentSubmit, context: T
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
     const problematicSubsResult = await problematicSubsFound(context, userName);
-    console.log(problematicSubsResult);
+
     if (problematicSubsResult.badSubs.length === 0) {
         return;
     }
