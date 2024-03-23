@@ -160,7 +160,6 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
         }).all();
     } catch (error) {
         console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
-        console.log(error);
         userContent = [];
         // Note: We deliberately don't return an empty array here, because we still want to set last check date.
     }
