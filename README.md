@@ -56,3 +56,7 @@ You can now independently configure ban, remove and report options if you don't 
 If you have been banned by a subreddit using Hive Protector, please contact the subreddit that banned you.
 
 For any feedback on the bot itself including bugs and enhancements, please post in /r/fsvapps or DM /u/fsv.
+
+## Source code
+
+This app is open source. You can find it on Github [here](https://github.com/fsvreddit/hive-protect).
