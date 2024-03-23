@@ -1,5 +1,14 @@
 import {TriggerContext} from "@devvit/public-api";
 
+export enum ThingPrefix {
+    Comment = "t1_",
+    Account = "t2_",
+    Post = "t3_",
+    Message = "t4_",
+    Subreddit = "t5_",
+    Award = "t6_"
+}
+
 export async function isModerator (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
     const filteredModeratorList = await context.reddit.getModerators({subredditName, username}).all();
     return filteredModeratorList.length > 0;
@@ -34,4 +43,8 @@ export async function getAppName (context: TriggerContext) {
     const appUser = await context.reddit.getCurrentUser();
     await context.redis.set(redisKey, appUser.username);
     return appUser.username;
+}
+
+export function replaceAll (input: string, pattern: string, replacement: string): string {
+    return input.split(pattern).join(replacement);
 }
