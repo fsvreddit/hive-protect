@@ -1,12 +1,17 @@
 import {Devvit} from "@devvit/public-api";
-import {handlePostOrCommentSubmitEvent} from "./hiveProtect.js";
+import {handleCommentSubmitEvent, handlePostSubmitEvent} from "./hiveProtect.js";
 import {appSettings} from "./settings.js";
 
 Devvit.addSettings(appSettings);
 
 Devvit.addTrigger({
-    events: ["PostSubmit", "CommentSubmit"],
-    onEvent: handlePostOrCommentSubmitEvent,
+    event: "PostSubmit",
+    onEvent: handlePostSubmitEvent,
+});
+
+Devvit.addTrigger({
+    event: "CommentSubmit",
+    onEvent: handleCommentSubmitEvent,
 });
 
 Devvit.configure({
