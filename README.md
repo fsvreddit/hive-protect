@@ -40,7 +40,9 @@ Allows you to specify a reply to be left against the post or comment. These will
 
 ## Operation notes
 
-The app will only check a user once every two hours to avoid flooding the API with requests.
+The app will only check a user once every two hours to avoid flooding the API with requests, it caches the results of the previous check.
+
+However, if a user is unbanned, previously cached results are cleared because an unban may be as a result of a user cleaning up their profile, so it may need to be checked again.
 
 The app will never ban a user based on content in the subreddit the app is installed in - you cannot use this as a "ban anyone who posts or comments" bot.
 
