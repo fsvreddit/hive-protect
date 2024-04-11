@@ -24,6 +24,12 @@ export async function handleCommentSubmitEvent (event: CommentSubmit, context: T
 }
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
+    if (userName === "AutoModerator") {
+        // Automod could legitimately have activity in "bad" subreddits, but we never want to act on it.
+        console.log("AutoModerator is exempt from all checks.");
+        return false;
+    }
+
     const settings = await context.settings.getAll();
     const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0];
 
