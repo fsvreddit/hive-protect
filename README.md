@@ -40,7 +40,7 @@ Allows you to specify a reply to be left against the post or comment. These will
 
 ## Operation notes
 
-The app will only check a user once every two hours to avoid flooding the API with requests, it caches the results of the previous check.
+The app will only check a user once every six hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
 
 However, if a user is unbanned, previously cached results are cleared because an unban may be as a result of a user cleaning up their profile, so it may need to be checked again.
 
