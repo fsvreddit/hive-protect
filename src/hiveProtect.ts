@@ -1,5 +1,5 @@
 import {TriggerContext, Post, Comment, SettingsValues} from "@devvit/public-api";
-import {CommentSubmit, PostSubmit} from "@devvit/protos";
+import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
 import {addHours, subDays} from "date-fns";
 import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix, domainFromUrlString} from "./utility.js";
 import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
@@ -88,6 +88,10 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
     }
 }
 
+function getLatestResultKey (username: string) {
+    return `participation-latestresult-${username}`;
+}
+
 interface ProblematicSubsResult {
     badSubs: string[],
     badDomains: string[],
@@ -95,8 +99,7 @@ interface ProblematicSubsResult {
 }
 
 async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
-    const redisKey = `participation-latestresult-${userName}`;
-    const recentCheckValue = await context.redis.get(redisKey);
+    const recentCheckValue = await context.redis.get(getLatestResultKey(userName));
 
     if (!recentCheckValue) {
         return;
@@ -306,7 +309,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
 
     // Store record of last time checked
     const now = new Date().getTime();
-    await context.redis.set(`participation-latestresult-${userName}`, JSON.stringify(result), {expiration: addHours(now, 2)});
+    await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), {expiration: addHours(now, 2)});
 
     return result;
 }
@@ -350,4 +353,18 @@ async function banUser (context: TriggerContext, userName: string, problematicIt
     await context.redis.set(`participation-prevbanned-${userName}`, new Date().getTime().toString());
 
     console.log(`Banned ${userName} from ${subredditName}`);
+}
+
+export async function handleModAction (event: ModAction, context: TriggerContext) {
+    if (event.action !== "unbanuser" && event.action !== "banuser") {
+        return;
+    }
+
+    if (!event.targetUser) {
+        return;
+    }
+
+    console.log(`Detected a ${event.action} event for ${event.targetUser.name}. Removing cached check results that may exist.`);
+    // Clear down previous check after unban
+    await context.redis.del(getLatestResultKey(event.targetUser.name));
 }
