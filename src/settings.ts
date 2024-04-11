@@ -1,4 +1,4 @@
-import {SettingsFormField} from "@devvit/public-api";
+import {SettingsFormField, SettingsFormFieldValidatorEvent} from "@devvit/public-api";
 
 export enum AppSetting {
     Subreddits = "subreddits",
@@ -33,6 +33,12 @@ export enum ContentTypeToActOn {
     CommentsOnly = "comments",
 }
 
+function selectFieldHasOptionChosen (event: SettingsFormFieldValidatorEvent<string[]>): void | string {
+    if (!event.value || event.value.length !== 1) {
+        return "You must choose an option";
+    }
+}
+
 export const appSettings: SettingsFormField[] = [
     {
         type: "group",
@@ -61,6 +67,7 @@ export const appSettings: SettingsFormField[] = [
                 ],
                 defaultValue: [ContentTypeToActOn.PostsAndComments],
                 multiSelect: false,
+                onValidate: selectFieldHasOptionChosen,
             },
             {
                 type: "number",
@@ -124,6 +131,7 @@ export const appSettings: SettingsFormField[] = [
                 ],
                 defaultValue: [PrevBanBehaviour.NeverReBan],
                 multiSelect: false,
+                onValidate: selectFieldHasOptionChosen,
             },
             {
                 type: "paragraph",
