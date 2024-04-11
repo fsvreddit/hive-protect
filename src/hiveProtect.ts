@@ -267,7 +267,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
 
     const badPostCount = badSubItems.filter(item => item instanceof Post).length;
     const badCommentCount = badSubItems.filter(item => item instanceof Comment).length;
-    console.log(`Found ${badPostCount} posts(s) and ${badCommentCount} comment(s) of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
+    console.log(`Found ${badPostCount} post(s) and ${badCommentCount} comment(s) of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
 
     if (failsChecks) {
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
