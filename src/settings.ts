@@ -2,7 +2,9 @@ import {SettingsFormField} from "@devvit/public-api";
 
 export enum AppSetting {
     Subreddits = "subreddits",
-    ItemCount = "itemcount",
+    CombinedItemCount = "itemcount",
+    PostCount = "postcount",
+    CommentCount = "commentcount",
     DaysToMonitor = "daystomonitor",
     ExemptApprovedUser = "exemptapproveduser",
     BanEnabled = "banenabled",
@@ -34,15 +36,24 @@ export const appSettings: SettingsFormField[] = [
             },
             {
                 type: "number",
-                name: AppSetting.ItemCount,
+                name: AppSetting.CombinedItemCount,
                 label: "Number of posts and comments to meet threshold",
-                helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a report/removal/ban",
+                helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a report/removal/ban. If zero, this threshold will be ignored.",
                 defaultValue: 6,
-                onValidate: ({value}) => {
-                    if (!value || value < 1) {
-                        return "Threshold must be at least 1";
-                    }
-                },
+            },
+            {
+                type: "number",
+                name: AppSetting.PostCount,
+                label: "Number of posts to meet threshold",
+                helpText: "User must have at least this many posts in 'bad' subreddits. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
+                defaultValue: 0,
+            },
+            {
+                type: "number",
+                name: AppSetting.CommentCount,
+                label: "Number of comments to meet threshold",
+                helpText: "User must have at least this many comments in 'bad' subreddits. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
+                defaultValue: 0,
             },
             {
                 type: "number",

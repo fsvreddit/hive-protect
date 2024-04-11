@@ -124,6 +124,28 @@ async function previousBanDate (context: TriggerContext, userName: string): Prom
     return new Date(2024, 1, 1);
 }
 
+function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number, postThreshold?: number, commentThreshold?: number): boolean {
+    if (combinedThreshold) {
+        if (items.length >= combinedThreshold) {
+            return true;
+        }
+    }
+
+    if (postThreshold) {
+        if (items.filter(item => item instanceof Post).length >= postThreshold) {
+            return true;
+        }
+    }
+
+    if (commentThreshold) {
+        if (items.filter(item => item instanceof Comment).length >= commentThreshold) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 async function problematicSubsFound (context: TriggerContext, userName: string): Promise<ProblematicSubsResult> {
     const emptyResult = <ProblematicSubsResult>{
         badSubs: [],
@@ -140,8 +162,18 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
 
     const settings = await context.settings.getAll();
 
+    const combinedThreshold = settings[AppSetting.CombinedItemCount] as number | undefined;
+    const postThreshold = settings[AppSetting.PostCount] as number | undefined;
+    const commentThreshold = settings[AppSetting.CommentCount] as number | undefined;
+
+    if (!combinedThreshold && !postThreshold && !commentThreshold) {
+        console.log("No thresholds are defined. Quitting.");
+        return emptyResult;
+    }
+
     // Get main config and quit if not defined properly.
     const subReddits = settings[AppSetting.Subreddits] as string | undefined;
+
     if (!subReddits) {
         console.log("Subreddit list not defined.");
         return emptyResult;
@@ -171,10 +203,9 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
     if (badSubItems.length > 0) {
         // Filter down further to check the configured thresholds. If there was nothing for the user,
         // there is no point even getting these config values.
-        const threshold = settings[AppSetting.ItemCount] as number ?? 6;
         const daysToMonitor = settings[AppSetting.DaysToMonitor] as number ?? 28;
         badSubItems = badSubItems.filter(item => item.createdAt > subDays(new Date(), daysToMonitor));
-        failsChecks = badSubItems.length >= threshold;
+        failsChecks = isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold);
 
         if (failsChecks) {
             // Over threshold, but user may have been previously banned.
@@ -192,7 +223,7 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
                     case PrevBanBehaviour.OnlyRebanIfNewContent:
                         console.log("App is configured to only ban based on content since last ban. Disregarding previous content.");
                         badSubItems = badSubItems.filter(item => item.createdAt > previousBan);
-                        failsChecks = badSubItems.length >= threshold;
+                        failsChecks = failsChecks = isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold);
                         userBannable = failsChecks;
                         break;
                     case PrevBanBehaviour.AlwaysReBan:
@@ -208,7 +239,9 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
         failsChecks = false;
     }
 
-    console.log(`Found ${badSubItems.length} item(s) of content in monitored subreddits for ${userName}`);
+    const badPostCount = badSubItems.filter(item => item instanceof Post).length;
+    const badCommentCount = badSubItems.filter(item => item instanceof Comment).length;
+    console.log(`Found ${badPostCount} posts(s) and ${badCommentCount} comment(s) of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
 
     if (failsChecks) {
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
