@@ -1,4 +1,4 @@
-import {TriggerContext, Post, Comment, SettingsValues} from "@devvit/public-api";
+import {TriggerContext, Post, Comment, SettingsValues, GetUserOverviewOptions} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
 import {addHours, subDays} from "date-fns";
 import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix, domainFromUrlString} from "./utility.js";
@@ -204,28 +204,21 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
     }
 
     let userContent: (Post | Comment)[] = [];
+
+    const userOverviewOptions = <GetUserOverviewOptions>{
+        username: userName,
+        limit: 100,
+        pageSize: 100,
+        sort: "new",
+    };
+
     try {
         if (combinedThreshold || postThreshold && commentThreshold) {
-            userContent = await context.reddit.getCommentsAndPostsByUser({
-                username: userName,
-                limit: 100,
-                pageSize: 100,
-                sort: "new",
-            }).all();
+            userContent = await context.reddit.getCommentsAndPostsByUser(userOverviewOptions).all();
         } else if (postThreshold) {
-            userContent = await context.reddit.getPostsByUser({
-                username: userName,
-                limit: 100,
-                pageSize: 100,
-                sort: "new",
-            }).all();
+            userContent = await context.reddit.getPostsByUser(userOverviewOptions).all();
         } else if (commentThreshold) {
-            userContent = await context.reddit.getCommentsByUser({
-                username: userName,
-                limit: 100,
-                pageSize: 100,
-                sort: "new",
-            }).all();
+            userContent = await context.reddit.getCommentsByUser(userOverviewOptions).all();
         }
     } catch (error) {
         console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
