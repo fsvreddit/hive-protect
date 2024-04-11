@@ -3,6 +3,7 @@ import {SettingsFormField} from "@devvit/public-api";
 export enum AppSetting {
     Subreddits = "subreddits",
     Domains = "domains",
+    ContentTypeToActOn = "contenttypetoacton",
     CombinedItemCount = "itemcount",
     PostCount = "postcount",
     CommentCount = "commentcount",
@@ -15,6 +16,7 @@ export enum AppSetting {
     BanDuration = "banduration",
     RemoveEnabled = "removeenabled",
     ReplyTemplate = "removalreasontemplate",
+    StickyReply = "stickyreply",
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
 }
@@ -23,6 +25,12 @@ export enum PrevBanBehaviour {
     NeverReBan = "never",
     AlwaysReBan = "always",
     OnlyRebanIfNewContent = "newonly",
+}
+
+export enum ContentTypeToActOn {
+    PostsAndComments = "all",
+    PostsOnly = "posts",
+    CommentsOnly = "comments",
 }
 
 export const appSettings: SettingsFormField[] = [
@@ -40,6 +48,19 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.Domains,
                 label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'.",
+            },
+            {
+                type: "select",
+                name: AppSetting.ContentTypeToActOn,
+                label: "Content type to act on",
+                helpText: "If 'Posts Only' or 'Comments Only' are selected, the app will only check histories when that type of item is submitted",
+                options: [
+                    {label: "Posts and Comments", value: ContentTypeToActOn.PostsAndComments},
+                    {label: "Posts Only", value: ContentTypeToActOn.PostsOnly},
+                    {label: "Comments Only", value: ContentTypeToActOn.CommentsOnly},
+                ],
+                defaultValue: [ContentTypeToActOn.PostsAndComments],
+                multiSelect: false,
             },
             {
                 type: "number",
@@ -149,6 +170,12 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.ReplyTemplate,
                 label: "Leave a locked reply with a reply based on this template",
                 helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
+            },
+            {
+                type: "boolean",
+                name: AppSetting.StickyReply,
+                label: "Sticky reply comment",
+                helpText: "Works on posts only. Replies to comments cannot be stickied",
             },
         ],
     },

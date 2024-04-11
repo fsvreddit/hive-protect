@@ -1,8 +1,8 @@
-import {TriggerContext, Post, Comment} from "@devvit/public-api";
+import {TriggerContext, Post, Comment, SettingsValues} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit} from "@devvit/protos";
 import {addHours, subDays} from "date-fns";
 import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix, domainFromUrlString} from "./utility.js";
-import {AppSetting, PrevBanBehaviour} from "./settings.js";
+import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
 import _ from "lodash";
 
 export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
@@ -24,13 +24,20 @@ export async function handleCommentSubmitEvent (event: CommentSubmit, context: T
 }
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
-    const problematicItemsResult = await problematicItemsFound(context, userName);
+    const settings = await context.settings.getAll();
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0];
+
+    if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
+        // Invalid type of item to check.
+        return;
+    }
+
+    const problematicItemsResult = await problematicItemsFound(settings, context, userName);
 
     if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
         return;
     }
 
-    const settings = await context.settings.getAll();
     const banEnabled = settings[AppSetting.BanEnabled] as boolean ?? true;
     const removeEnabled = settings[AppSetting.RemoveEnabled] as boolean ?? true;
     const reportEnabled = settings[AppSetting.ReportEnabled] as boolean ?? false;
@@ -50,7 +57,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
         replyMessage = replaceAll(replyMessage, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
         replyMessage = replaceAll(replyMessage, "{{username}}", userName);
         const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
-        const shouldSticky = targetId.startsWith(ThingPrefix.Post);
+        const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean ?? false);
         await Promise.all([
             newComment.distinguish(shouldSticky),
             newComment.lock(),
@@ -150,7 +157,7 @@ function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number,
     return false;
 }
 
-async function problematicItemsFound (context: TriggerContext, userName: string): Promise<ProblematicSubsResult> {
+async function problematicItemsFound (settings: SettingsValues, context: TriggerContext, userName: string): Promise<ProblematicSubsResult> {
     const emptyResult = <ProblematicSubsResult>{
         badSubs: [],
         badDomains: [],
@@ -164,8 +171,6 @@ async function problematicItemsFound (context: TriggerContext, userName: string)
         console.log(`Most recent check on ${userName} was too recent. Quitting using previous result value.`);
         return lastResult;
     }
-
-    const settings = await context.settings.getAll();
 
     const combinedThreshold = settings[AppSetting.CombinedItemCount] as number | undefined;
     const postThreshold = settings[AppSetting.PostCount] as number | undefined;
@@ -189,18 +194,32 @@ async function problematicItemsFound (context: TriggerContext, userName: string)
         return emptyResult;
     }
 
-    let userContent: (Post | Comment)[] | undefined;
+    let userContent: (Post | Comment)[] = [];
     try {
-        userContent = await context.reddit.getCommentsAndPostsByUser({
-            username: userName,
-            limit: 100,
-            pageSize: 100,
-            sort: "new",
-        }).all();
+        if (combinedThreshold || postThreshold && commentThreshold) {
+            userContent = await context.reddit.getCommentsAndPostsByUser({
+                username: userName,
+                limit: 100,
+                pageSize: 100,
+                sort: "new",
+            }).all();
+        } else if (postThreshold) {
+            userContent = await context.reddit.getPostsByUser({
+                username: userName,
+                limit: 100,
+                pageSize: 100,
+                sort: "new",
+            }).all();
+        } else if (commentThreshold) {
+            userContent = await context.reddit.getCommentsByUser({
+                username: userName,
+                limit: 100,
+                pageSize: 100,
+                sort: "new",
+            }).all();
+        }
     } catch (error) {
         console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
-        userContent = [];
-        // Note: We deliberately don't return an empty array here, because we still want to set last check date.
     }
 
     let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId && (subredditList.includes(item.subredditName.toLowerCase()) || item instanceof Post && domainList.includes(domainFromUrlString(item.url))));

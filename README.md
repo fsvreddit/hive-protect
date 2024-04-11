@@ -10,6 +10,8 @@ A Reddit app that can be used to ban, report or remove content from users of "un
 
 **List of Domains**: A comma-separated list of domains to watch for e.g. onlyfans.com, fansly.com.
 
+**Content type to act on**: You can choose whether to check user content when they submit posts, comments or both.
+
 **Thresholds**: You can specify a combined posts and comments threshold, a posts threshold and comments threshold separately. Zero means that the threshold will not be checked. At least one threshold should have a value for the app to have any effect.
 
 **Number of days to monitor**: The app will only check a user's history back this many days. This can be used so that a user's old history is not held against them, or to ban only prolific users of "bad" subreddits.
