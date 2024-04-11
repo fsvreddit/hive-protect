@@ -20,7 +20,7 @@ A Reddit app that can be used to ban, report or remove content from users of "un
 
 ### Ban options
 
-Banning users is optional, you can choose to remove or report instead.
+Banning users is optional, you can choose to remove, report or reply instead.
 
 The application supports three main modes of handling users who have previously been banned by the app.
 
@@ -33,6 +33,10 @@ Allows you to specify if the user's content should be removed or not.
 ### Report Options
 
 Allows you to specify if a user's content should be reported. Only works if removal is turned off.
+
+### Reply Options
+
+Allows you to specify a reply to be left against the post or comment. These will always be mod-distinguished and you can optionally choose to sticky replies to posts.
 
 ## Operation notes
 
@@ -59,8 +63,7 @@ All data is automatically removed if the app is uninstalled.
 
 Allow domain detection and optional separate thresholds for posts and comments
 
-Allow replies to content without removing the content (options are now independent)
-
+Allow replies to content without removing the content (the two options are now independent of each other)
 
 ## Changes in 1.3
 

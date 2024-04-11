@@ -49,13 +49,16 @@ export function replaceAll (input: string, pattern: string, replacement: string)
     return input.split(pattern).join(replacement);
 }
 
+export function trimLeadingWWW (hostname: string): string {
+    if (hostname.startsWith("www.")) {
+        return hostname.substring(4);
+    }
+    return hostname;
+}
+
 export function domainFromUrlString (url: string): string {
     try {
-        const hostname = new URL(url).hostname;
-        if (hostname.startsWith("www.")) {
-            return hostname.substring(4);
-        }
-        return hostname;
+        return trimLeadingWWW(new URL(url).hostname);
     } catch (error) {
         console.log(`Error getting hostname. Input: ${url}`);
         console.log(error);

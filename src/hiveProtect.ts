@@ -1,7 +1,7 @@
 import {TriggerContext, Post, Comment, SettingsValues, GetUserOverviewOptions} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
 import {addHours, subDays} from "date-fns";
-import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix, domainFromUrlString} from "./utility.js";
+import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix, domainFromUrlString, trimLeadingWWW} from "./utility.js";
 import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
 import _ from "lodash";
 
@@ -196,7 +196,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
 
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
-    const domainList = domains.toLowerCase().split(",").map(domain => domain.trim());
+    const domainList = domains.toLowerCase().split(",").map(domain => trimLeadingWWW(domain.trim()));
 
     if (subredditList.length === 0 && domainList.length === 0) {
         console.log("No subreddits or domains defined.");
