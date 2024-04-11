@@ -8,7 +8,7 @@ A Reddit app that can be used to ban, report or remove content from users of "un
 
 **List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U, FreeKarmaForAll. Not case sensitive.
 
-**List of Domains**: A comma-separated list of domains to watch for e.g. onlyfans.com, fansly.com.
+**List of Domains**: A comma-separated list of domains to watch for e.g. onlyfans.com, fansly.com. Don't include "www.".
 
 **Content type to act on**: You can choose whether to check user content when they submit posts, comments or both.
 
