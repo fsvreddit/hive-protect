@@ -50,7 +50,7 @@ The app will never ban a user based on content in the subreddit the app is insta
 
 * Banning users who have participated in free karma subreddits
 * Banning or reporting users from R4R subreddits who have posted in Onlyfans promo subs, or have posted Onlyfans/Fansly links anywhere on Reddit
-* Adding a sticky comment on a post in R4R subreddits warning users about posting in OF promotion subs/sharing OF links elsewhere
+* Adding a sticky comment on a post in NSFW subreddits warning users about the user's post history in OF promotion subs/sharing OF links elsewhere
 
 ## Data stored by the app
 
