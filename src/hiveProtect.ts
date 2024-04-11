@@ -300,7 +300,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
     if (failsChecks) {
         result = <ProblematicSubsResult>{
             badSubs: _.uniq(badSubItems.filter(item => subredditList.includes(item.subredditName)).map(item => item.subredditName)),
-            badDomains: _.uniq(badSubItems.filter(item => domainList.includes(domainFromUrlString(item.url))).map(item => domainFromUrlString(item.url))),
+            badDomains: _.uniq(badSubItems.filter(item => item instanceof Post && domainList.includes(domainFromUrlString(item.url))).map(item => domainFromUrlString(item.url))),
             userBannable,
         };
     } else {
