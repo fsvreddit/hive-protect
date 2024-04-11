@@ -6,11 +6,11 @@ A Reddit app that can be used to ban, report or remove content from users of "un
 
 ### Detection Options
 
-Enable functionality: This app will not run if it has been disabled. You may want to temporarily turn off the app without installing it, and this option gives you the ability to do this.
+**List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U, FreeKarmaForAll. Not case sensitive.
 
-**List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U,FreeKarmaForAll. Not case sensitive.
+**List of Domains**: A comma-separated list of domains to watch for e.g. onlyfans.com, fansly.com.
 
-**Number of items to meet threshold**: A user must have at least this number of comments or posts to be banned by the bot.
+**Thresholds**: You can specify a combined posts and comments threshold, a posts threshold and comments threshold separately. Zero means that the threshold will not be checked. At least one threshold should have a value for the app to have any effect.
 
 **Number of days to monitor**: The app will only check a user's history back this many days. This can be used so that a user's old history is not held against them, or to ban only prolific users of "bad" subreddits.
 
@@ -38,14 +38,27 @@ The app will only check a user once every two hours to avoid flooding the API wi
 
 The app will never ban a user based on content in the subreddit the app is installed in - you cannot use this as a "ban anyone who posts or comments" bot.
 
+## Example use cases
+
+* Banning users who have participated in free karma subreddits
+* Banning or reporting users from R4R subreddits who have posted in Onlyfans promo subs, or have posted Onlyfans/Fansly links anywhere on Reddit
+* Adding a sticky comment on a post in R4R subreddits warning users about posting in OF promotion subs/sharing OF links elsewhere
+
 ## Data stored by the app
 
-This app uses the Community Apps platform's Key value store plugin to store very basic information about users checked.
+This app uses the Community Apps platform's Redis plugin to store very basic information about users checked.
 
 * The date and time that the app last checked a user, to support checking only once every two hours
 * User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
 All data is automatically removed if the app is uninstalled.
+
+## Changes in 1.4
+
+Allow domain detection and optional separate thresholds for posts and comments
+
+Allow replies to content without removing the content (options are now independent)
+
 
 ## Changes in 1.3
 

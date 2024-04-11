@@ -48,3 +48,11 @@ export async function getAppName (context: TriggerContext) {
 export function replaceAll (input: string, pattern: string, replacement: string): string {
     return input.split(pattern).join(replacement);
 }
+
+export function domainFromUrlString (url: string): string {
+    const hostname = new URL(url).hostname;
+    if (hostname.startsWith("www.")) {
+        return hostname.substring(4);
+    }
+    return hostname;
+}

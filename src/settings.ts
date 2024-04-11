@@ -2,6 +2,7 @@ import {SettingsFormField} from "@devvit/public-api";
 
 export enum AppSetting {
     Subreddits = "subreddits",
+    Domains = "domains",
     CombinedItemCount = "itemcount",
     PostCount = "postcount",
     CommentCount = "commentcount",
@@ -13,7 +14,7 @@ export enum AppSetting {
     BanNote = "bannote",
     BanDuration = "banduration",
     RemoveEnabled = "removeenabled",
-    RemovalReasonTemplate = "removalreasontemplate",
+    ReplyTemplate = "removalreasontemplate",
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
 }
@@ -28,6 +29,7 @@ export const appSettings: SettingsFormField[] = [
     {
         type: "group",
         label: "Detection Options",
+        helpText: "You should specify a subreddit list, a domains list, or both. You should also specify at least one threshold (combined, posts, or comments). If no thresholds or detection options are specified, this app has no effect.",
         fields: [
             {
                 type: "paragraph",
@@ -35,24 +37,29 @@ export const appSettings: SettingsFormField[] = [
                 label: "Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all",
             },
             {
+                type: "paragraph",
+                name: AppSetting.Domains,
+                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'.",
+            },
+            {
                 type: "number",
                 name: AppSetting.CombinedItemCount,
                 label: "Number of posts and comments to meet threshold",
-                helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a report/removal/ban. If zero, this threshold will be ignored.",
+                helpText: "User must have at least this many posts or comments with a matching subreddit or domain to result in a report/removal/ban. If zero, this threshold will be ignored.",
                 defaultValue: 6,
             },
             {
                 type: "number",
                 name: AppSetting.PostCount,
                 label: "Number of posts to meet threshold",
-                helpText: "User must have at least this many posts in 'bad' subreddits. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
+                helpText: "User must have at least this many posts with a matching subreddit or domain. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
                 defaultValue: 0,
             },
             {
                 type: "number",
                 name: AppSetting.CommentCount,
                 label: "Number of comments to meet threshold",
-                helpText: "User must have at least this many comments in 'bad' subreddits. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
+                helpText: "User must have at least this many comments with a matching subreddit or domain. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
                 defaultValue: 0,
             },
             {
@@ -101,13 +108,13 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.BanMessage,
                 label: "Enter a ban message to send to users",
-                helpText: "Placeholders supported: {{sublist}}, {{username}}. This will be replaced with a comma-separated list of the matched subs",
+                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains",
             },
             {
                 type: "string",
                 name: AppSetting.BanNote,
                 label: "Enter a note to put in the ban log (optional)",
-                helpText: "Placeholder supported: {{sublist}}. This will be replaced with a comma-separated list of the matched subs",
+                helpText: "Placeholder supported: {{sublist}}, {{domainlist}}. These will be replaced with a comma-separated list of the matched subs or domains",
             },
             {
                 type: "number",
@@ -131,11 +138,17 @@ export const appSettings: SettingsFormField[] = [
                 label: "Remove posts and comments over threshold",
                 defaultValue: true,
             },
+        ],
+    },
+    {
+        type: "group",
+        label: "Reply options",
+        fields: [
             {
                 type: "string",
-                name: AppSetting.RemovalReasonTemplate,
-                label: "Leave a locked reply with a removal reason based on this template",
-                helpText: "Optional. If left blank, no reason will be left. Placeholders supported: {{sublist}}, {{username}}",
+                name: AppSetting.ReplyTemplate,
+                label: "Leave a locked reply with a reply based on this template",
+                helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
             },
         ],
     },

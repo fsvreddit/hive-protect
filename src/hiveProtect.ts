@@ -1,7 +1,7 @@
 import {TriggerContext, Post, Comment} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit} from "@devvit/protos";
 import {addHours, subDays} from "date-fns";
-import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix} from "./utility.js";
+import {isModerator, isContributor, getSubredditName, getAppName, replaceAll, ThingPrefix, domainFromUrlString} from "./utility.js";
 import {AppSetting, PrevBanBehaviour} from "./settings.js";
 import _ from "lodash";
 
@@ -24,9 +24,9 @@ export async function handleCommentSubmitEvent (event: CommentSubmit, context: T
 }
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
-    const problematicSubsResult = await problematicSubsFound(context, userName);
+    const problematicItemsResult = await problematicItemsFound(context, userName);
 
-    if (problematicSubsResult.badSubs.length === 0) {
+    if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
         return;
     }
 
@@ -35,31 +35,34 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
     const removeEnabled = settings[AppSetting.RemoveEnabled] as boolean ?? true;
     const reportEnabled = settings[AppSetting.ReportEnabled] as boolean ?? false;
 
-    if (banEnabled && problematicSubsResult.userBannable) {
-        await banUser(context, userName, problematicSubsResult.badSubs);
+    if (banEnabled && problematicItemsResult.userBannable) {
+        await banUser(context, userName, problematicItemsResult);
     }
 
     if (removeEnabled) {
         await context.reddit.remove(targetId, true);
         console.log(`Removed item ${targetId}`);
-        let removalReason = settings[AppSetting.RemovalReasonTemplate] as string | undefined;
-        if (removalReason) {
-            removalReason = replaceAll(removalReason, "{{sublist}}", problematicSubsResult.badSubs.join(", "));
-            removalReason = replaceAll(removalReason, "{{username}}", userName);
-            const newComment = await context.reddit.submitComment({id: targetId, text: removalReason});
-            const shouldSticky = targetId.startsWith(ThingPrefix.Post);
-            await Promise.all([
-                newComment.distinguish(shouldSticky),
-                newComment.lock(),
-            ]);
-            console.log(`Removal reason left on ${targetId}`);
-        }
+    }
+
+    let replyMessage = settings[AppSetting.ReplyTemplate] as string | undefined;
+    if (replyMessage) {
+        replyMessage = replaceAll(replyMessage, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
+        replyMessage = replaceAll(replyMessage, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+        replyMessage = replaceAll(replyMessage, "{{username}}", userName);
+        const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
+        const shouldSticky = targetId.startsWith(ThingPrefix.Post);
+        await Promise.all([
+            newComment.distinguish(shouldSticky),
+            newComment.lock(),
+        ]);
+        console.log(`Reply left on ${targetId}`);
     }
 
     if (reportEnabled) {
         let reportReason = settings[AppSetting.ReportTemplate] as string | undefined;
         if (reportReason && !removeEnabled) {
-            reportReason = replaceAll(reportReason, "{{sublist}}", problematicSubsResult.badSubs.join(", "));
+            reportReason = replaceAll(reportReason, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
+            reportReason = replaceAll(reportReason, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
             let target: Post | Comment;
             if (targetId.startsWith(ThingPrefix.Post)) {
                 target = await context.reddit.getPostById(targetId);
@@ -74,11 +77,12 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
 
 interface ProblematicSubsResult {
     badSubs: string[],
+    badDomains: string[],
     userBannable: boolean,
 }
 
 async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
-    const redisKey = `participation-recentresult-${userName}`;
+    const redisKey = `participation-latestresult-${userName}`;
     const recentCheckValue = await context.redis.get(redisKey);
 
     if (!recentCheckValue) {
@@ -146,9 +150,10 @@ function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number,
     return false;
 }
 
-async function problematicSubsFound (context: TriggerContext, userName: string): Promise<ProblematicSubsResult> {
+async function problematicItemsFound (context: TriggerContext, userName: string): Promise<ProblematicSubsResult> {
     const emptyResult = <ProblematicSubsResult>{
         badSubs: [],
+        badDomains: [],
         userBannable: false,
     };
 
@@ -172,15 +177,17 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
     }
 
     // Get main config and quit if not defined properly.
-    const subReddits = settings[AppSetting.Subreddits] as string | undefined;
-
-    if (!subReddits) {
-        console.log("Subreddit list not defined.");
-        return emptyResult;
-    }
+    const subReddits = settings[AppSetting.Subreddits] as string ?? "";
+    const domains = settings[AppSetting.Domains] as string ?? "";
 
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
+    const domainList = domains.toLowerCase().split(",").map(domain => domain.trim());
+
+    if (subredditList.length === 0 && domainList.length === 0) {
+        console.log("No subreddits or domains defined.");
+        return emptyResult;
+    }
 
     let userContent: (Post | Comment)[] | undefined;
     try {
@@ -196,7 +203,7 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
         // Note: We deliberately don't return an empty array here, because we still want to set last check date.
     }
 
-    let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId && subredditList.includes(item.subredditName.toLowerCase()));
+    let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId && (subredditList.includes(item.subredditName.toLowerCase()) || domainList.includes(domainFromUrlString(item.url))));
     let failsChecks: boolean | undefined;
     let userBannable = false;
 
@@ -264,7 +271,8 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
     let result: ProblematicSubsResult;
     if (failsChecks) {
         result = <ProblematicSubsResult>{
-            badSubs: _.uniq(badSubItems.map(item => item.subredditName)),
+            badSubs: _.uniq(badSubItems.filter(item => subredditList.includes(item.subredditName)).map(item => item.subredditName)),
+            badDomains: _.uniq(badSubItems.filter(item => domainList.includes(domainFromUrlString(item.url))).map(item => domainFromUrlString(item.url))),
             userBannable,
         };
     } else {
@@ -273,17 +281,18 @@ async function problematicSubsFound (context: TriggerContext, userName: string):
 
     // Store record of last time checked
     const now = new Date().getTime();
-    await context.redis.set(`participation-recentresult-${userName}`, JSON.stringify(result), {expiration: addHours(now, 2)});
+    await context.redis.set(`participation-latestresult-${userName}`, JSON.stringify(result), {expiration: addHours(now, 2)});
 
     return result;
 }
 
-async function banUser (context: TriggerContext, userName: string, badSubs: string[]): Promise<void> {
+async function banUser (context: TriggerContext, userName: string, problematicItemsResult: ProblematicSubsResult): Promise<void> {
     const settings = await context.settings.getAll();
 
     let banMessage = settings[AppSetting.BanMessage] as string | undefined;
     if (banMessage) {
-        banMessage = banMessage.replace("{{sublist}}", badSubs.join(", "));
+        banMessage = banMessage.replace("{{sublist}}", problematicItemsResult.badSubs.join(", "));
+        banMessage = banMessage.replace("{{domainlist}}", problematicItemsResult.badDomains.join(", "));
         banMessage = banMessage.replace("{{username}}", userName);
     }
     const banNote = settings[AppSetting.BanNote] as string | undefined;
@@ -302,9 +311,12 @@ async function banUser (context: TriggerContext, userName: string, badSubs: stri
         banReason = "Banned by Hive Protector. Matches in {{sublist}}";
     }
 
+    banReason = banReason.replace("{{sublist}}", problematicItemsResult.badSubs.join(", "));
+    banReason = banReason.replace("{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+
     await context.reddit.banUser({
         username: userName,
-        reason: banReason.replace("{{sublist}}", badSubs.join(", ")),
+        reason: banReason,
         message: banMessage,
         subredditName,
         duration: banDuration,
