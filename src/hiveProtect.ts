@@ -349,7 +349,7 @@ async function banUser (context: TriggerContext, subredditName: string, userName
     console.log(`Banned ${userName} from ${subredditName}`);
 }
 
-export async function handleModAction (event: ModAction, context: TriggerContext) {
+export async function handleModActionEvent (event: ModAction, context: TriggerContext) {
     if (event.action !== "unbanuser" && event.action !== "banuser") {
         return;
     }
