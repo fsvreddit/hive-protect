@@ -203,7 +203,7 @@ async function problematicItemsFound (context: TriggerContext, userName: string)
         // Note: We deliberately don't return an empty array here, because we still want to set last check date.
     }
 
-    let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId && (subredditList.includes(item.subredditName.toLowerCase()) || domainList.includes(domainFromUrlString(item.url))));
+    let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId && (subredditList.includes(item.subredditName.toLowerCase()) || item instanceof Post && domainList.includes(domainFromUrlString(item.url))));
     let failsChecks: boolean | undefined;
     let userBannable = false;
 
