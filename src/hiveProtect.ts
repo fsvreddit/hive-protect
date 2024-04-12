@@ -196,8 +196,10 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
     const domains = settings[AppSetting.Domains] as string ?? "";
 
     // Convert into an array of lower-case individual sub names
-    const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
-    const domainList = domains.toLowerCase().split(",").map(domain => trimLeadingWWW(domain.trim())).filter(domain => !domain.endsWith("reddit.com") && domain !== "redd.it");
+    const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim()).filter(subName => subName !== "");
+    const domainList = domains.toLowerCase().split(",")
+        .map(domain => trimLeadingWWW(domain.trim()))
+        .filter(domain => !domain.endsWith("reddit.com") && domain !== "redd.it" && domain !== "");
 
     if (subredditList.length === 0 && domainList.length === 0) {
         console.log("No subreddits or domains defined.");
