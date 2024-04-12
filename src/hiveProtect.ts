@@ -195,7 +195,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
 
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim());
-    const domainList = domains.toLowerCase().split(",").map(domain => trimLeadingWWW(domain.trim()));
+    const domainList = domains.toLowerCase().split(",").map(domain => trimLeadingWWW(domain.trim())).filter(domain => !domain.endsWith("reddit.com") && domain !== "redd.it");
 
     if (subredditList.length === 0 && domainList.length === 0) {
         console.log("No subreddits or domains defined.");
