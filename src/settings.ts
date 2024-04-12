@@ -16,6 +16,7 @@ export enum AppSetting {
     BanDuration = "banduration",
     RemoveEnabled = "removeenabled",
     ReplyTemplate = "removalreasontemplate",
+    LockReply = "lockreply",
     StickyReply = "stickyreply",
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
@@ -137,7 +138,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.BanMessage,
                 label: "Enter a ban message to send to users",
-                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains",
+                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains and {{permalink}} with the latest post or comment that was detected.",
             },
             {
                 type: "string",
@@ -174,10 +175,16 @@ export const appSettings: SettingsFormField[] = [
         label: "Reply options",
         fields: [
             {
-                type: "string",
+                type: "paragraph",
                 name: AppSetting.ReplyTemplate,
-                label: "Leave a locked reply with a reply based on this template",
-                helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
+                label: "Leave a reply with a reply based on this template",
+                helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
+            },
+            {
+                type: "boolean",
+                name: AppSetting.LockReply,
+                label: "Lock reply comment",
+                defaultValue: true,
             },
             {
                 type: "boolean",

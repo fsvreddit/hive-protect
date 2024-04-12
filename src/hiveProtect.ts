@@ -61,13 +61,14 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     if (replyMessage) {
         replyMessage = replaceAll(replyMessage, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
         replyMessage = replaceAll(replyMessage, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+        replyMessage = replaceAll(replyMessage, "{{permalink}}", problematicItemsResult.itemPermalink ?? "");
         replyMessage = replaceAll(replyMessage, "{{username}}", userName);
         const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
         const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean ?? false);
-        await Promise.all([
-            newComment.distinguish(shouldSticky),
-            newComment.lock(),
-        ]);
+        await newComment.distinguish(shouldSticky);
+        if (settings[AppSetting.LockReply] as boolean ?? true) {
+            await newComment.lock();
+        }
         console.log(`Reply left on ${targetId}`);
     }
 
@@ -95,6 +96,7 @@ function getLatestResultKey (username: string) {
 interface ProblematicSubsResult {
     badSubs: string[],
     badDomains: string[],
+    itemPermalink?: string,
     userBannable: boolean,
 }
 
@@ -292,6 +294,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
         result = <ProblematicSubsResult>{
             badSubs: _.uniq(badSubItems.filter(item => subredditList.includes(item.subredditName)).map(item => item.subredditName)),
             badDomains: _.uniq(badSubItems.filter(item => item instanceof Post && domainList.includes(domainFromUrlString(item.url))).map(item => domainFromUrlString(item.url))),
+            itemPermalink: badSubItems[0].permalink,
             userBannable,
         };
     } else {
@@ -317,6 +320,7 @@ async function banUser (context: TriggerContext, subredditName: string, userName
     if (banMessage) {
         banMessage = banMessage.replace("{{sublist}}", problematicItemsResult.badSubs.join(", "));
         banMessage = banMessage.replace("{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+        banMessage = banMessage.replace("{{permalink}}", problematicItemsResult.itemPermalink ?? "");
         banMessage = banMessage.replace("{{username}}", userName);
     }
     const banNote = settings[AppSetting.BanNote] as string | undefined;
