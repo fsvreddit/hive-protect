@@ -30,17 +30,20 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         return false;
     }
 
-    const settings = await context.settings.getAll();
-    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0];
+    const problematicItemsResult = await problematicItemsFound(context, subredditName, userName);
 
-    if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
-        // Invalid type of item to check.
+    if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
         return;
     }
 
-    const problematicItemsResult = await problematicItemsFound(settings, context, subredditName, userName);
+    const settings = await context.settings.getAll();
 
-    if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
+    // Now check if the submission is of a type configured to be checked.
+    // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
+    // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0];
+    if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
+        // Invalid type of item to check.
         return;
     }
 
@@ -167,7 +170,7 @@ function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number,
     return false;
 }
 
-async function problematicItemsFound (settings: SettingsValues, context: TriggerContext, subredditName: string, userName: string): Promise<ProblematicSubsResult> {
+async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string): Promise<ProblematicSubsResult> {
     const emptyResult = <ProblematicSubsResult>{
         badSubs: [],
         badDomains: [],
@@ -182,6 +185,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
         return lastResult;
     }
 
+    const settings = await context.settings.getAll();
     const combinedThreshold = settings[AppSetting.CombinedItemCount] as number | undefined;
     const postThreshold = settings[AppSetting.PostCount] as number | undefined;
     const commentThreshold = settings[AppSetting.CommentCount] as number | undefined;
