@@ -278,7 +278,7 @@ async function problematicItemsFound (settings: SettingsValues, context: Trigger
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
         // true for most subs, so we only do these checks if the user was going to be banned otherwise.
         const skipChecksPromises: Promise<boolean>[] = [isModerator(context, subredditName, userName)];
-        if (!(settings[AppSetting.ExemptApprovedUser] as boolean ?? false)) {
+        if (settings[AppSetting.ExemptApprovedUser] as boolean ?? false) {
             skipChecksPromises.push(isContributor(context, subredditName, userName));
         }
 
