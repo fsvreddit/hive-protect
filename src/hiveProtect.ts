@@ -93,7 +93,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
 }
 
 function getLatestResultKey (username: string) {
-    return `participation-latestresult-${username}`;
+    return `participation-lastcheckresult-${username}`;
 }
 
 interface ProblematicSubsResult {
@@ -103,7 +103,7 @@ interface ProblematicSubsResult {
     userBannable: boolean,
 }
 
-async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
+export async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
     const recentCheckValue = await context.redis.get(getLatestResultKey(userName));
 
     if (!recentCheckValue) {
@@ -298,11 +298,12 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
     let result: ProblematicSubsResult;
     if (failsChecks) {
         result = <ProblematicSubsResult>{
-            badSubs: _.uniq(badSubItems.filter(item => subredditList.includes(item.subredditName)).map(item => item.subredditName)),
+            badSubs: _.uniq(badSubItems.filter(item => subredditList.includes(item.subredditName.toLowerCase())).map(item => item.subredditName)),
             badDomains: _.uniq(badSubItems.filter(item => item instanceof Post && domainList.includes(domainFromUrlString(item.url))).map(item => domainFromUrlString(item.url))),
             itemPermalink: badSubItems[0].permalink,
             userBannable,
         };
+        console.log(result);
     } else {
         result = emptyResult;
     }
