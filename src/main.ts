@@ -1,6 +1,7 @@
 import {Devvit} from "@devvit/public-api";
-import {handleCommentSubmitEvent, handlePostSubmitEvent} from "./hiveProtect.js";
+import {handleCommentSubmitEvent, handleModActionEvent, handlePostSubmitEvent} from "./hiveProtect.js";
 import {appSettings} from "./settings.js";
+import {handleAppUpgradeEvent} from "./installEventHandlers.js";
 
 Devvit.addSettings(appSettings);
 
@@ -12,6 +13,16 @@ Devvit.addTrigger({
 Devvit.addTrigger({
     event: "CommentSubmit",
     onEvent: handleCommentSubmitEvent,
+});
+
+Devvit.addTrigger({
+    event: "ModAction",
+    onEvent: handleModActionEvent,
+});
+
+Devvit.addTrigger({
+    event: "AppUpgrade",
+    onEvent: handleAppUpgradeEvent,
 });
 
 Devvit.configure({

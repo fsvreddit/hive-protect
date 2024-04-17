@@ -1,8 +1,12 @@
-import {SettingsFormField} from "@devvit/public-api";
+import {SettingsFormField, SettingsFormFieldValidatorEvent} from "@devvit/public-api";
 
 export enum AppSetting {
     Subreddits = "subreddits",
-    ItemCount = "itemcount",
+    Domains = "domains",
+    ContentTypeToActOn = "contenttypetoacton",
+    CombinedItemCount = "itemcount",
+    PostCount = "postcount",
+    CommentCount = "commentcount",
     DaysToMonitor = "daystomonitor",
     ExemptApprovedUser = "exemptapproveduser",
     BanEnabled = "banenabled",
@@ -11,7 +15,9 @@ export enum AppSetting {
     BanNote = "bannote",
     BanDuration = "banduration",
     RemoveEnabled = "removeenabled",
-    RemovalReasonTemplate = "removalreasontemplate",
+    ReplyTemplate = "removalreasontemplate",
+    LockReply = "lockreply",
+    StickyReply = "stickyreply",
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
 }
@@ -22,10 +28,23 @@ export enum PrevBanBehaviour {
     OnlyRebanIfNewContent = "newonly",
 }
 
+export enum ContentTypeToActOn {
+    PostsAndComments = "all",
+    PostsOnly = "posts",
+    CommentsOnly = "comments",
+}
+
+function selectFieldHasOptionChosen (event: SettingsFormFieldValidatorEvent<string[]>): void | string {
+    if (!event.value || event.value.length !== 1) {
+        return "You must choose an option";
+    }
+}
+
 export const appSettings: SettingsFormField[] = [
     {
         type: "group",
         label: "Detection Options",
+        helpText: "You should specify a subreddit list, a domains list, or both. You should also specify at least one threshold (combined, posts, or comments). If no thresholds or detection options are specified, this app has no effect.",
         fields: [
             {
                 type: "paragraph",
@@ -33,16 +52,44 @@ export const appSettings: SettingsFormField[] = [
                 label: "Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all",
             },
             {
+                type: "paragraph",
+                name: AppSetting.Domains,
+                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'.",
+            },
+            {
+                type: "select",
+                name: AppSetting.ContentTypeToActOn,
+                label: "Content type to act on",
+                helpText: "If 'Posts Only' or 'Comments Only' are selected, the app will only check histories when that type of item is submitted",
+                options: [
+                    {label: "Posts and Comments", value: ContentTypeToActOn.PostsAndComments},
+                    {label: "Posts Only", value: ContentTypeToActOn.PostsOnly},
+                    {label: "Comments Only", value: ContentTypeToActOn.CommentsOnly},
+                ],
+                defaultValue: [ContentTypeToActOn.PostsAndComments],
+                multiSelect: false,
+                onValidate: selectFieldHasOptionChosen,
+            },
+            {
                 type: "number",
-                name: AppSetting.ItemCount,
+                name: AppSetting.CombinedItemCount,
                 label: "Number of posts and comments to meet threshold",
-                helpText: "User must have at least this many posts or comments in 'bad' subreddits to result in a report/removal/ban",
+                helpText: "User must have at least this many posts or comments with a matching subreddit or domain to result in a report/removal/ban. If zero, this threshold will be ignored.",
                 defaultValue: 6,
-                onValidate: ({value}) => {
-                    if (!value || value < 1) {
-                        return "Threshold must be at least 1";
-                    }
-                },
+            },
+            {
+                type: "number",
+                name: AppSetting.PostCount,
+                label: "Number of posts to meet threshold",
+                helpText: "User must have at least this many posts with a matching subreddit or domain. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
+                defaultValue: 0,
+            },
+            {
+                type: "number",
+                name: AppSetting.CommentCount,
+                label: "Number of comments to meet threshold",
+                helpText: "User must have at least this many comments with a matching subreddit or domain. Can work independently from the 'combined' count. If zero, this threshold will be ignored.",
+                defaultValue: 0,
             },
             {
                 type: "number",
@@ -85,18 +132,19 @@ export const appSettings: SettingsFormField[] = [
                 ],
                 defaultValue: [PrevBanBehaviour.NeverReBan],
                 multiSelect: false,
+                onValidate: selectFieldHasOptionChosen,
             },
             {
                 type: "paragraph",
                 name: AppSetting.BanMessage,
                 label: "Enter a ban message to send to users",
-                helpText: "Placeholders supported: {{sublist}}, {{username}}. This will be replaced with a comma-separated list of the matched subs",
+                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains and {{permalink}} with the latest post or comment that was detected.",
             },
             {
                 type: "string",
                 name: AppSetting.BanNote,
                 label: "Enter a note to put in the ban log (optional)",
-                helpText: "Placeholder supported: {{sublist}}. This will be replaced with a comma-separated list of the matched subs",
+                helpText: "Placeholder supported: {{sublist}}, {{domainlist}}. These will be replaced with a comma-separated list of the matched subs or domains",
             },
             {
                 type: "number",
@@ -120,11 +168,29 @@ export const appSettings: SettingsFormField[] = [
                 label: "Remove posts and comments over threshold",
                 defaultValue: true,
             },
+        ],
+    },
+    {
+        type: "group",
+        label: "Reply options",
+        fields: [
             {
-                type: "string",
-                name: AppSetting.RemovalReasonTemplate,
-                label: "Leave a locked reply with a removal reason based on this template",
-                helpText: "Optional. If left blank, no reason will be left. Placeholders supported: {{sublist}}, {{username}}",
+                type: "paragraph",
+                name: AppSetting.ReplyTemplate,
+                label: "Leave a reply with a reply based on this template",
+                helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
+            },
+            {
+                type: "boolean",
+                name: AppSetting.LockReply,
+                label: "Lock reply comment",
+                defaultValue: true,
+            },
+            {
+                type: "boolean",
+                name: AppSetting.StickyReply,
+                label: "Sticky reply comment",
+                helpText: "Works on posts only. Replies to comments cannot be stickied",
             },
         ],
     },

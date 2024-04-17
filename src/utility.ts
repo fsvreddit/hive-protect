@@ -19,19 +19,6 @@ export async function isContributor (context: TriggerContext, subredditName: str
     return filteredContributorList.length > 0;
 }
 
-export async function getSubredditName (context: TriggerContext) {
-    // Prevent needless calls to Reddit API by using a read-through cache.
-    const redisKey = "subredditName";
-    const subredditName = await context.redis.get(redisKey);
-    if (subredditName) {
-        return subredditName;
-    }
-
-    const subreddit = await context.reddit.getCurrentSubreddit();
-    await context.redis.set(redisKey, subreddit.name);
-    return subreddit.name;
-}
-
 export async function getAppName (context: TriggerContext) {
     // Prevent needless calls to Reddit API by using a read-through cache.
     const redisKey = "appName";
@@ -47,4 +34,25 @@ export async function getAppName (context: TriggerContext) {
 
 export function replaceAll (input: string, pattern: string, replacement: string): string {
     return input.split(pattern).join(replacement);
+}
+
+export function trimLeadingWWW (hostname: string): string {
+    if (hostname.startsWith("www.")) {
+        return hostname.substring(4);
+    }
+    return hostname;
+}
+
+export function domainFromUrlString (url: string): string {
+    if (url.startsWith("/r/")) {
+        return "reddit.com";
+    }
+
+    try {
+        return trimLeadingWWW(new URL(url).hostname);
+    } catch (error) {
+        console.log(`Error getting hostname. Input: ${url}`);
+        console.log(error);
+        return "";
+    }
 }

@@ -6,11 +6,13 @@ A Reddit app that can be used to ban, report or remove content from users of "un
 
 ### Detection Options
 
-Enable functionality: This app will not run if it has been disabled. You may want to temporarily turn off the app without installing it, and this option gives you the ability to do this.
+**List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U, FreeKarmaForAll. Not case sensitive.
 
-**List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U,FreeKarmaForAll. Not case sensitive.
+**List of Domains**: A comma-separated list of domains to watch for e.g. onlyfans.com, fansly.com. Don't include "www.".
 
-**Number of items to meet threshold**: A user must have at least this number of comments or posts to be banned by the bot.
+**Content type to act on**: You can choose whether to check user content when they submit posts, comments or both.
+
+**Thresholds**: You can specify a combined posts and comments threshold, a posts threshold and comments threshold separately. Zero means that the threshold will not be checked. At least one threshold should have a value for the app to have any effect.
 
 **Number of days to monitor**: The app will only check a user's history back this many days. This can be used so that a user's old history is not held against them, or to ban only prolific users of "bad" subreddits.
 
@@ -18,7 +20,7 @@ Enable functionality: This app will not run if it has been disabled. You may wan
 
 ### Ban options
 
-Banning users is optional, you can choose to remove or report instead.
+Banning users is optional, you can choose to remove, report or reply instead.
 
 The application supports three main modes of handling users who have previously been banned by the app.
 
@@ -32,20 +34,38 @@ Allows you to specify if the user's content should be removed or not.
 
 Allows you to specify if a user's content should be reported. Only works if removal is turned off.
 
+### Reply Options
+
+Allows you to specify a reply to be left against the post or comment. These will always be mod-distinguished and you can optionally choose to sticky replies to posts.
+
 ## Operation notes
 
-The app will only check a user once every two hours to avoid flooding the API with requests.
+The app will only check a user once every six hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
+
+However, if a user is unbanned, previously cached results are cleared because an unban may be as a result of a user cleaning up their profile, so it may need to be checked again.
 
 The app will never ban a user based on content in the subreddit the app is installed in - you cannot use this as a "ban anyone who posts or comments" bot.
 
+## Example use cases
+
+* Banning users who have participated in free karma subreddits
+* Banning or reporting users from R4R subreddits who have posted in Onlyfans promo subs, or have posted Onlyfans/Fansly links anywhere on Reddit
+* Adding a sticky comment on a post in NSFW subreddits warning users about the user's post history in OF promotion subs/sharing OF links elsewhere
+
 ## Data stored by the app
 
-This app uses the Community Apps platform's Key value store plugin to store very basic information about users checked.
+This app uses the Community Apps platform's Redis plugin to store very basic information about users checked.
 
 * The date and time that the app last checked a user, to support checking only once every two hours
 * User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
 All data is automatically removed if the app is uninstalled.
+
+## Changes in 1.4
+
+Allow domain detection and optional separate thresholds for posts and comments
+
+Allow replies to content without removing the content (the two options are now independent of each other)
 
 ## Changes in 1.3
 
