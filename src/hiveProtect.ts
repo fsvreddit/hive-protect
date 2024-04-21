@@ -1,4 +1,4 @@
-import {TriggerContext, Post, Comment, SettingsValues, GetUserOverviewOptions} from "@devvit/public-api";
+import {TriggerContext, Post, Comment, GetUserOverviewOptions} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
 import {addHours, subDays} from "date-fns";
 import {isModerator, isContributor, getAppName, replaceAll, ThingPrefix, domainFromUrlString, trimLeadingWWW} from "./utility.js";
