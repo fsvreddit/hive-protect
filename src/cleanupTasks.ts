@@ -94,11 +94,7 @@ export async function addCleanupEntriesForBannedAccounts (context: TriggerContex
         return;
     }
 
-    const members: ZMember[] = [];
-    for (const user of userList) {
-        members.push({member: user, score: addMinutes(new Date(), Math.random()).getTime() * 60 * 24});
-    }
-
-    await context.redis.zAdd(CLEANUP_LOG_KEY, ...members);
-    console.log(`Cleanup: ${members.length} previously banned users added to the cleanup store`);
+    // Store users with random times throughout the day to spread out workload.
+    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => <ZMember>{member: user, score: addMinutes(new Date(), Math.random()).getTime() * 60 * 24}));
+    console.log(`Cleanup: ${userList.length} previously banned users added to the cleanup store`);
 }
