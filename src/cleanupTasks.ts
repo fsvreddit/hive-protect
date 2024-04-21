@@ -89,12 +89,12 @@ export async function addCleanupEntriesForBannedAccounts (context: TriggerContex
         limit: 1000,
     }).all();
 
-    const userList = _.uniq(_.compact(modLog.filter(entry => entry.target).map(entry => entry.target?.author)));
+    const userList = _.uniq(_.compact(modLog.filter(entry => entry.target).map(entry => entry.target?.author))).filter(username => username !== "[deleted]");
     if (userList.length === 0) {
         return;
     }
 
     // Store users with random times throughout the day to spread out workload.
-    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => <ZMember>{member: user, score: addMinutes(new Date(), Math.random()).getTime() * 60 * 24}));
+    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => <ZMember>{member: user, score: addMinutes(new Date(), Math.random() * 60 * 24).getTime()}));
     console.log(`Cleanup: ${userList.length} previously banned users added to the cleanup store`);
 }

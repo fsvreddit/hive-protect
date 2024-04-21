@@ -1,6 +1,6 @@
 import {TriggerContext} from "@devvit/public-api";
 import {AppUpgrade} from "@devvit/protos";
-import {addCleanupEntriesForBannedAccounts} from "./cleanupTasks.js";
+import {CLEANUP_LOG_KEY, addCleanupEntriesForBannedAccounts} from "./cleanupTasks.js";
 
 export async function handleAppUpgradeEvent (_: AppUpgrade, context: TriggerContext) {
     // Clean up old redis key, no longer used.
