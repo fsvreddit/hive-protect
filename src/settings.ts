@@ -20,6 +20,7 @@ export enum AppSetting {
     StickyReply = "stickyreply",
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
+    ReportNumber = "reportnumber",
 }
 
 export enum PrevBanBehaviour {
@@ -209,7 +210,15 @@ export const appSettings: SettingsFormField[] = [
                 type: "string",
                 name: AppSetting.ReportTemplate,
                 label: "Template for report reason",
-                helpText: "Placeholder supported: {{sublist}}",
+                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}.",
+                defaultValue: "Content found in: {{sublist}}",
+            },
+            {
+                type: "number",
+                name: AppSetting.ReportNumber,
+                label: "Stop reporting user after this many approvals",
+                helpText: "Once user has been reported this many times, the app will no longer report further content. If zero, the app will always report.",
+                defaultValue: 3,
             },
         ],
     },
