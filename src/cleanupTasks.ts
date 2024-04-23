@@ -58,21 +58,21 @@ export async function cleanupDeletedAccounts (_: ScheduledJobEvent, context: Tri
         userStatuses.push(<UserActive>{username, isActive});
     }
 
-    const activeUsers = userStatuses.filter(user => user.isActive);
-    const deletedUsers = userStatuses.filter(user => !user.isActive);
+    const activeUsers = userStatuses.filter(user => user.isActive).map(user => user.username);
+    const deletedUsers = userStatuses.filter(user => !user.isActive).map(user => user.username);
 
     // For active users, set their next check date to be one day from now.
     if (activeUsers.length > 0) {
         console.log(`Cleanup: ${activeUsers.length} users still active out of ${userStatuses.length}. Resetting next check time.`);
-        await context.redis.zAdd(CLEANUP_LOG_KEY, ...activeUsers.map(user => <ZMember>{member: user.username, score: addDays(new Date(), 1).getTime()}));
+        await context.redis.zAdd(CLEANUP_LOG_KEY, ...activeUsers.map(user => <ZMember>{member: user, score: addDays(new Date(), 1).getTime()}));
     }
 
-    // For deleted users, remove them from both the cleanup log and the points score.
+    // For deleted users, remove them from both the cleanup log and remove previous records of bans and approvals.
     if (deletedUsers.length > 0) {
         console.log(`Cleanup: ${deletedUsers.length} users out of ${userStatuses.length} are deleted or suspended. Removing from data store.`);
-        await context.redis.zRem(APPROVALS_KEY, deletedUsers.map(user => user.username));
-        await Promise.all(deletedUsers.map(user => context.redis.del(`participation-prevbanned-${user.username}`)));
-        await context.redis.zRem(CLEANUP_LOG_KEY, deletedUsers.map(user => user.username));
+        await context.redis.zRem(APPROVALS_KEY, deletedUsers);
+        await Promise.all(deletedUsers.map(user => context.redis.del(`participation-prevbanned-${user}`)));
+        await context.redis.zRem(CLEANUP_LOG_KEY, deletedUsers);
     }
 }
 
