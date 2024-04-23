@@ -6,8 +6,9 @@ import _ from "lodash";
 export const CLEANUP_LOG_KEY = "cleanupStore";
 
 export async function setCleanupForUser (username: string, context: TriggerContext) {
-    await context.redis.zAdd(CLEANUP_LOG_KEY, {member: username, score: addDays(new Date(), 1).getTime()});
+    await context.redis.zAdd(CLEANUP_LOG_KEY, {member: username, score: addDays(new Date(), 2).getTime()});
 }
+
 async function userActive (username: string, context: TriggerContext): Promise<boolean> {
     try {
         await context.reddit.getUserByUsername(username);
@@ -15,13 +16,12 @@ async function userActive (username: string, context: TriggerContext): Promise<b
     } catch (error) {
         if (error instanceof Error) {
             if (error.stack && error.stack.includes("404 Not Found")) {
-                // Deleted or shadowbanned or suspended
-                console.log(`Cleanup: ${username} appears to be deleted or suspended.`);
+                // Deleted or shadowbanned
+                console.log(`Cleanup: ${username} appears to be deleted or shadowbanned.`);
                 return false;
             }
         }
-        // Other errors may be platform errors, or indicate suspended (but not deleted) users. In those
-        // cases we do not want to remove the data.
+        // Other errors may be platform errors. In those cases we do not want to remove the data.
         return true;
     }
 }
@@ -95,6 +95,6 @@ export async function addCleanupEntriesForBannedAccounts (context: TriggerContex
     }
 
     // Store users with random times throughout the day to spread out workload.
-    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => <ZMember>{member: user, score: addMinutes(new Date(), Math.random() * 60 * 24).getTime()}));
+    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => <ZMember>{member: user, score: addMinutes(new Date(), Math.random() * 60 * 24 * 2).getTime()}));
     console.log(`Cleanup: ${userList.length} previously banned users added to the cleanup store`);
 }
