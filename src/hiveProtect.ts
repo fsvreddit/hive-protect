@@ -1,9 +1,12 @@
-import {TriggerContext, Post, Comment, SettingsValues, GetUserOverviewOptions} from "@devvit/public-api";
+import {TriggerContext, Post, Comment, GetUserOverviewOptions} from "@devvit/public-api";
 import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
-import {addHours, subDays} from "date-fns";
+import {addDays, addHours, subDays} from "date-fns";
 import {isModerator, isContributor, getAppName, replaceAll, ThingPrefix, domainFromUrlString, trimLeadingWWW} from "./utility.js";
 import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
+import {setCleanupForUser} from "./cleanupTasks.js";
 import _ from "lodash";
+
+export const APPROVALS_KEY = "ItemApprovalCount";
 
 export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
     if (!event.author || !event.author.name || !event.post || !event.subreddit || event.author.id === context.appAccountId) {
@@ -78,16 +81,33 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     if (reportEnabled) {
         let reportReason = settings[AppSetting.ReportTemplate] as string | undefined;
         if (reportReason && !removeEnabled) {
-            reportReason = replaceAll(reportReason, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
-            reportReason = replaceAll(reportReason, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
-            let target: Post | Comment;
-            if (targetId.startsWith(ThingPrefix.Post)) {
-                target = await context.reddit.getPostById(targetId);
-            } else {
-                target = await context.reddit.getCommentById(targetId);
+            const whitelistThreshold = settings[AppSetting.ReportNumber] as number ?? 3;
+            let shouldReport = true;
+            if (whitelistThreshold) {
+                try {
+                    const currentApprovalCount = await context.redis.zScore(APPROVALS_KEY, userName);
+                    if (currentApprovalCount >= whitelistThreshold) {
+                        console.log(`User ${userName} has too many approvals to report.`);
+                        shouldReport = false;
+                    }
+                } catch {
+                    // User has no approvals, so always report.
+                }
             }
-            await context.reddit.report(target, {reason: reportReason});
-            console.log(`Reported comment ${targetId}`);
+
+            if (shouldReport) {
+                reportReason = replaceAll(reportReason, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
+                reportReason = replaceAll(reportReason, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+                let target: Post | Comment;
+                if (targetId.startsWith(ThingPrefix.Post)) {
+                    target = await context.reddit.getPostById(targetId);
+                } else {
+                    target = await context.reddit.getCommentById(targetId);
+                }
+                await context.reddit.report(target, {reason: reportReason});
+                await context.redis.set(`itemreported~${targetId}`, new Date().getTime.toString(), {expiration: addDays(new Date(), 7)});
+                console.log(`Reported comment ${targetId}`);
+            }
         }
     }
 }
@@ -356,20 +376,40 @@ async function banUser (context: TriggerContext, subredditName: string, userName
     });
 
     await context.redis.set(`participation-prevbanned-${userName}`, new Date().getTime().toString());
+    await setCleanupForUser(userName, context);
 
     console.log(`Banned ${userName} from ${subredditName}`);
 }
 
 export async function handleModActionEvent (event: ModAction, context: TriggerContext) {
-    if (event.action !== "unbanuser" && event.action !== "banuser") {
-        return;
+    if (event.targetUser && (event.action === "unbanuser" || event.action === "banuser")) {
+        console.log(`Detected a ${event.action} event for ${event.targetUser.name}. Removing cached check results that may exist.`);
+        // Clear down previous check after unban
+        await context.redis.del(getLatestResultKey(event.targetUser.name));
     }
 
-    if (!event.targetUser) {
-        return;
-    }
+    if (event.targetUser && (event.action === "approvecomment" || event.action === "approvelink")) {
+        let targetId: string | undefined;
+        if (event.action === "approvecomment" && event.targetComment) {
+            targetId = event.targetComment.id;
+        } else if (event.action === "approvelink" && event.targetPost) {
+            targetId = event.targetPost.id;
+        }
 
-    console.log(`Detected a ${event.action} event for ${event.targetUser.name}. Removing cached check results that may exist.`);
-    // Clear down previous check after unban
-    await context.redis.del(getLatestResultKey(event.targetUser.name));
+        if (!targetId) {
+            // This should be impossible, but handle anyway.
+            return;
+        }
+
+        // Check to see if post/comment was previously flagged by this app.
+        const itemReported = await context.redis.get(`itemreported~${targetId}`);
+        if (!itemReported) {
+            return;
+        }
+
+        // Increment approvals counter.
+        const newApprovalCount = await context.redis.zIncrBy(APPROVALS_KEY, event.targetUser.name, 1);
+        await setCleanupForUser(event.targetUser.name, context);
+        console.log(`Approved a reported comment by ${event.targetUser.name}. Approval counter is now ${newApprovalCount}.`);
+    }
 }

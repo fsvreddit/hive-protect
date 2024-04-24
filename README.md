@@ -59,7 +59,12 @@ This app uses the Community Apps platform's Redis plugin to store very basic inf
 * The date and time that the app last checked a user, to support checking only once every two hours
 * User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
-All data is automatically removed if the app is uninstalled.
+All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 24 hours.
+
+## Changes in 1.5
+
+- Add limit on number of times a user will get reported. By default, reports for a given user will stop after comments or posts flagged by this app have been approved three times, similar to Reddit's native ban evasion filter.
+- Check for and remove stored data for deleted accounts.
 
 ## Changes in 1.4
 
