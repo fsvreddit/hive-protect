@@ -69,6 +69,9 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         replyMessage = replaceAll(replyMessage, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
         replyMessage = replaceAll(replyMessage, "{{permalink}}", problematicItemsResult.itemPermalink ?? "");
         replyMessage = replaceAll(replyMessage, "{{username}}", userName);
+
+        replyMessage = `${replyMessage.trim()}\n\n*I am a bot, and this action was performed automatically. Please [contact the moderators of this subreddit](/message/compose/?to=/r/${subredditName}) if you have any questions or concerns.*`;
+
         const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
         const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean ?? false);
         await newComment.distinguish(shouldSticky);
