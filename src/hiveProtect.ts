@@ -193,6 +193,15 @@ function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number,
     return false;
 }
 
+interface Domain {
+    domain: string,
+    wildcard: boolean,
+}
+
+function isDomainInList (domain: string, domainList: Domain[]): boolean {
+    return domainList.some(item => !item.wildcard && domain === item.domain || item.wildcard && domain.endsWith(item.domain));
+}
+
 async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string): Promise<ProblematicSubsResult> {
     const emptyResult = <ProblematicSubsResult>{
         badSubs: [],
@@ -224,9 +233,11 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
 
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim()).filter(subName => subName !== "");
+
     const domainList = domains.toLowerCase().split(",")
         .map(domain => trimLeadingWWW(domain.trim()))
-        .filter(domain => !domain.endsWith("reddit.com") && domain !== "redd.it" && domain !== "");
+        .filter(domain => !domain.endsWith("reddit.com") && !domain.endsWith("redd.it") && domain !== "")
+        .map(domain => <Domain>{domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.")});
 
     if (subredditList.length === 0 && domainList.length === 0) {
         console.log("No subreddits or domains defined.");
@@ -254,7 +265,9 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
         console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
     }
 
-    let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId && (subredditList.includes(item.subredditName.toLowerCase()) || item instanceof Post && domainList.includes(domainFromUrlString(item.url))));
+    let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId &&
+        (subredditList.includes(item.subredditName.toLowerCase()) || item instanceof Post && isDomainInList(domainFromUrlString(item.url), domainList)));
+
     let failsChecks: boolean | undefined;
     let userBannable = false;
 
@@ -322,7 +335,7 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
     if (failsChecks) {
         result = <ProblematicSubsResult>{
             badSubs: _.uniq(badSubItems.filter(item => subredditList.includes(item.subredditName.toLowerCase())).map(item => item.subredditName)),
-            badDomains: _.uniq(badSubItems.filter(item => item instanceof Post && domainList.includes(domainFromUrlString(item.url))).map(item => domainFromUrlString(item.url))),
+            badDomains: _.uniq(badSubItems.filter(item => item instanceof Post && isDomainInList(domainFromUrlString(item.url), domainList)).map(item => domainFromUrlString(item.url))),
             itemPermalink: badSubItems[0].permalink,
             userBannable,
         };
