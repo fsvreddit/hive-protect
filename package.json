@@ -9,13 +9,13 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/public-api": "0.10.18",
+    "@devvit/public-api": "0.10.19",
     "@types/lodash": "^4.14.202",
     "date-fns": "^2.30.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@devvit/tsconfig": "0.10.18",
+    "@devvit/tsconfig": "0.10.19",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.48.0",
