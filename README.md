@@ -61,6 +61,11 @@ This app uses the Community Apps platform's Redis plugin to store very basic inf
 
 All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 24 hours.
 
+## Changes in 1.6
+
+- Domain detection now supports wildcarded domains e.g. *.blogspot.com
+- Public comments made by the bot now include "I am a bot" boilerplate text.
+
 ## Changes in 1.5
 
 - Add limit on number of times a user will get reported. By default, reports for a given user will stop after comments or posts flagged by this app have been approved three times, similar to Reddit's native ban evasion filter.

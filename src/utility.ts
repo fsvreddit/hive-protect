@@ -44,7 +44,7 @@ export function trimLeadingWWW (hostname: string): string {
 }
 
 export function domainFromUrlString (url: string): string {
-    if (url.startsWith("/r/")) {
+    if (url.startsWith("/r/" || url.startsWith("/u"))) {
         return "reddit.com";
     }
 
