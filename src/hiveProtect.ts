@@ -81,7 +81,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
         const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean ?? false);
         await newComment.distinguish(shouldSticky);
-        if (settings[AppSetting.LockReply] as boolean ?? true) {
+        if (settings[AppSetting.LockReply]) {
             await newComment.lock();
         }
         console.log(`Reply left on ${targetId}`);
