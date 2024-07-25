@@ -1,8 +1,8 @@
 import {TriggerContext} from "@devvit/public-api";
-import {AppUpgrade} from "@devvit/protos";
+import {AppInstall, AppUpgrade} from "@devvit/protos";
 import {addCleanupEntriesForBannedAccounts} from "./cleanupTasks.js";
 
-export async function handleAppUpgradeEvent (_: AppUpgrade, context: TriggerContext) {
+export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
     // Clean up old redis key, no longer used.
     await context.redis.del("subredditName");
 
