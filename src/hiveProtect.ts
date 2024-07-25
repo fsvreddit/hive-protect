@@ -50,6 +50,12 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         return;
     }
 
+    const user = await context.reddit.getUserByUsername(userName);
+    if (user.isAdmin) {
+        console.log(`${userName} is an admin! No action will be taken.`);
+        return;
+    }
+
     const banEnabled = settings[AppSetting.BanEnabled] as boolean ?? true;
     const removeEnabled = settings[AppSetting.RemoveEnabled] as boolean ?? true;
     const reportEnabled = settings[AppSetting.ReportEnabled] as boolean ?? false;
