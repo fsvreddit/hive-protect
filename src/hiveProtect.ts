@@ -179,22 +179,16 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
 }
 
 function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number, postThreshold?: number, commentThreshold?: number): boolean {
-    if (combinedThreshold) {
-        if (items.length >= combinedThreshold) {
-            return true;
-        }
+    if (combinedThreshold && items.length >= combinedThreshold) {
+        return true;
     }
 
-    if (postThreshold) {
-        if (items.filter(item => item instanceof Post).length >= postThreshold) {
-            return true;
-        }
+    if (postThreshold && items.filter(item => item instanceof Post).length >= postThreshold) {
+        return true;
     }
 
-    if (commentThreshold) {
-        if (items.filter(item => item instanceof Comment).length >= commentThreshold) {
-            return true;
-        }
+    if (commentThreshold && items.filter(item => item instanceof Comment).length >= commentThreshold) {
+        return true;
     }
 
     return false;
