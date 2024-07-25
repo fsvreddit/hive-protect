@@ -273,6 +273,7 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
         }
     } catch (error) {
         console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
+        return emptyResult;
     }
 
     let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId &&
