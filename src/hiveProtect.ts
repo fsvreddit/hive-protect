@@ -44,7 +44,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     // Now check if the submission is of a type configured to be checked.
     // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
     // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
-    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0];
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
     if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
         // Invalid type of item to check.
         return;
@@ -158,7 +158,7 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
         limit: 1000,
     }).all();
 
-    modLog = modLog.filter(logEntry => logEntry.target && logEntry.target.author && logEntry.target.author === userName);
+    modLog = modLog.filter(logEntry => logEntry.target?.author === userName);
 
     if (modLog.length > 0) {
         const banDate = modLog[0].createdAt;
@@ -284,9 +284,9 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
             const previousBan = await previousBanDate(context, subredditName, userName);
             if (previousBan) {
                 console.log(`User was previously banned at ${previousBan.toISOString()}`);
-                const postBanBehaviour = settings[AppSetting.BehaviourIfPrevBan] as string[] ?? [PrevBanBehaviour.NeverReBan];
+                const postBanBehaviour = (settings[AppSetting.BehaviourIfPrevBan] as string[] ?? [PrevBanBehaviour.NeverReBan])[0] as PrevBanBehaviour;
 
-                switch (postBanBehaviour[0]) {
+                switch (postBanBehaviour) {
                     case PrevBanBehaviour.NeverReBan:
                         console.log("App is configured to never re-ban.");
                         userBannable = false;
