@@ -227,6 +227,15 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
         return emptyResult;
     }
 
+    const userWhitelistSetting = settings[AppSetting.UserWhitelist] as string | undefined;
+    if (userWhitelistSetting) {
+        const whitelistedUsers = userWhitelistSetting.split(",").map(x => x.trim().toLowerCase());
+        if (whitelistedUsers.includes(userName.toLowerCase())) {
+            console.log("User is whitelisted.");
+            return emptyResult;
+        }
+    }
+
     // Get main config and quit if not defined properly.
     const subReddits = settings[AppSetting.Subreddits] as string ?? "";
     const domains = settings[AppSetting.Domains] as string ?? "";
