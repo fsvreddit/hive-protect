@@ -11,8 +11,10 @@
   "dependencies": {
     "@devvit/public-api": "0.10.22",
     "@types/lodash": "^4.14.202",
+    "@types/pluralize": "^0.0.33",
     "date-fns": "^3.6.0",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "pluralize": "^8.0.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.16.0",

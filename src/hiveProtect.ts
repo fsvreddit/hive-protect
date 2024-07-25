@@ -5,6 +5,7 @@ import {isModerator, isContributor, getAppName, replaceAll, ThingPrefix, domainF
 import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
 import {setCleanupForUser} from "./cleanupTasks.js";
 import _ from "lodash";
+import pluralize from "pluralize";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -219,7 +220,7 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
     const lastResult = await lastCheckResult(context, userName);
 
     if (lastResult) {
-        console.log(`Most recent check on ${userName} was too recent. Quitting using previous result value.`);
+        console.log(`Most recent check on ${userName} was too recent.`);
         return lastResult;
     }
 
@@ -327,7 +328,12 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
 
     const badPostCount = badSubItems.filter(item => item instanceof Post).length;
     const badCommentCount = badSubItems.filter(item => item instanceof Comment).length;
-    console.log(`Found ${badPostCount} post(s) and ${badCommentCount} comment(s) of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
+
+    if (badPostCount === 0 && badCommentCount === 0) {
+        console.log(`Found no items of concern for ${userName}.`);
+    } else {
+        console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)} and ${badCommentCount} ${pluralize("comment", badCommentCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
+    }
 
     if (failsChecks) {
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
