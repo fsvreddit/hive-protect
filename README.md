@@ -64,6 +64,8 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 ## Changes in 1.7
 
 - Add user whitelist function
+- Exempts admins from all checks
+- Fix issue with identifying ban date for post-ban checks.
 
 ## Changes in 1.6
 
