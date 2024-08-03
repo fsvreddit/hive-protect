@@ -1,5 +1,5 @@
 import {ScheduledJobEvent, TriggerContext, ZMember} from "@devvit/public-api";
-import {addDays, addMinutes} from "date-fns";
+import {addDays, addMinutes, addSeconds} from "date-fns";
 import {APPROVALS_KEY} from "./hiveProtect.js";
 import _ from "lodash";
 
@@ -73,6 +73,14 @@ export async function cleanupDeletedAccounts (_: ScheduledJobEvent, context: Tri
         await context.redis.zRem(APPROVALS_KEY, deletedUsers);
         await Promise.all(deletedUsers.map(user => context.redis.del(`participation-prevbanned-${user}`)));
         await context.redis.zRem(CLEANUP_LOG_KEY, deletedUsers);
+    }
+
+    // If there were more users in this run than we could process, schedule another run immediately.
+    if (items.length > itemsToCheck) {
+        await context.scheduler.runJob({
+            name: "cleanupDeletedAccounts",
+            runAt: addSeconds(new Date(), 5),
+        });
     }
 }
 

@@ -1,7 +1,7 @@
 import {Devvit} from "@devvit/public-api";
 import {handleCommentSubmitEvent, handleModActionEvent, handlePostSubmitEvent} from "./hiveProtect.js";
 import {appSettings} from "./settings.js";
-import {handleAppUpgradeEvent} from "./installEventHandlers.js";
+import {handleAppInstallOrUpgradeEvent} from "./installEventHandlers.js";
 import {cleanupDeletedAccounts} from "./cleanupTasks.js";
 
 Devvit.addSettings(appSettings);
@@ -22,8 +22,8 @@ Devvit.addTrigger({
 });
 
 Devvit.addTrigger({
-    event: "AppUpgrade",
-    onEvent: handleAppUpgradeEvent,
+    events: ["AppInstall", "AppUpgrade"],
+    onEvent: handleAppInstallOrUpgradeEvent,
 });
 
 Devvit.addSchedulerJob({

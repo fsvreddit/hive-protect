@@ -27,7 +27,7 @@ export async function getAppName (context: TriggerContext) {
         return appName;
     }
 
-    const appUser = await context.reddit.getCurrentUser();
+    const appUser = await context.reddit.getAppUser();
     await context.redis.set(redisKey, appUser.username);
     return appUser.username;
 }

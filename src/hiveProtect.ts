@@ -5,6 +5,7 @@ import {isModerator, isContributor, getAppName, replaceAll, ThingPrefix, domainF
 import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
 import {setCleanupForUser} from "./cleanupTasks.js";
 import _ from "lodash";
+import pluralize from "pluralize";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -44,9 +45,15 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     // Now check if the submission is of a type configured to be checked.
     // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
     // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
-    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0];
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
     if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
         // Invalid type of item to check.
+        return;
+    }
+
+    const user = await context.reddit.getUserByUsername(userName);
+    if (user.isAdmin) {
+        console.log(`${userName} is an admin! No action will be taken.`);
         return;
     }
 
@@ -75,7 +82,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
         const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean ?? false);
         await newComment.distinguish(shouldSticky);
-        if (settings[AppSetting.LockReply] as boolean ?? true) {
+        if (settings[AppSetting.LockReply]) {
             await newComment.lock();
         }
         console.log(`Reply left on ${targetId}`);
@@ -158,7 +165,7 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
         limit: 1000,
     }).all();
 
-    modLog = modLog.filter(logEntry => logEntry.target && logEntry.target.author && logEntry.target.author === userName);
+    modLog = modLog.filter(logEntry => logEntry.target?.author === userName);
 
     if (modLog.length > 0) {
         const banDate = modLog[0].createdAt;
@@ -172,22 +179,16 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
 }
 
 function isOverThreshold (items: (Post | Comment)[], combinedThreshold?: number, postThreshold?: number, commentThreshold?: number): boolean {
-    if (combinedThreshold) {
-        if (items.length >= combinedThreshold) {
-            return true;
-        }
+    if (combinedThreshold && items.length >= combinedThreshold) {
+        return true;
     }
 
-    if (postThreshold) {
-        if (items.filter(item => item instanceof Post).length >= postThreshold) {
-            return true;
-        }
+    if (postThreshold && items.filter(item => item instanceof Post).length >= postThreshold) {
+        return true;
     }
 
-    if (commentThreshold) {
-        if (items.filter(item => item instanceof Comment).length >= commentThreshold) {
-            return true;
-        }
+    if (commentThreshold && items.filter(item => item instanceof Comment).length >= commentThreshold) {
+        return true;
     }
 
     return false;
@@ -213,7 +214,7 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
     const lastResult = await lastCheckResult(context, userName);
 
     if (lastResult) {
-        console.log(`Most recent check on ${userName} was too recent. Quitting using previous result value.`);
+        console.log(`Most recent check on ${userName} was too recent.`);
         return lastResult;
     }
 
@@ -225,6 +226,15 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
     if (!combinedThreshold && !postThreshold && !commentThreshold) {
         console.log("No thresholds are defined. Quitting.");
         return emptyResult;
+    }
+
+    const userWhitelistSetting = settings[AppSetting.UserWhitelist] as string | undefined;
+    if (userWhitelistSetting) {
+        const whitelistedUsers = userWhitelistSetting.split(",").map(x => x.trim().toLowerCase());
+        if (whitelistedUsers.includes(userName.toLowerCase())) {
+            console.log("User is whitelisted.");
+            return emptyResult;
+        }
     }
 
     // Get main config and quit if not defined properly.
@@ -263,6 +273,7 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
         }
     } catch (error) {
         console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
+        return emptyResult;
     }
 
     let badSubItems = userContent.filter(item => item.subredditId !== context.subredditId &&
@@ -284,9 +295,9 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
             const previousBan = await previousBanDate(context, subredditName, userName);
             if (previousBan) {
                 console.log(`User was previously banned at ${previousBan.toISOString()}`);
-                const postBanBehaviour = settings[AppSetting.BehaviourIfPrevBan] as string[] ?? [PrevBanBehaviour.NeverReBan];
+                const postBanBehaviour = (settings[AppSetting.BehaviourIfPrevBan] as string[] ?? [PrevBanBehaviour.NeverReBan])[0] as PrevBanBehaviour;
 
-                switch (postBanBehaviour[0]) {
+                switch (postBanBehaviour) {
                     case PrevBanBehaviour.NeverReBan:
                         console.log("App is configured to never re-ban.");
                         userBannable = false;
@@ -312,13 +323,18 @@ async function problematicItemsFound (context: TriggerContext, subredditName: st
 
     const badPostCount = badSubItems.filter(item => item instanceof Post).length;
     const badCommentCount = badSubItems.filter(item => item instanceof Comment).length;
-    console.log(`Found ${badPostCount} post(s) and ${badCommentCount} comment(s) of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
+
+    if (badPostCount === 0 && badCommentCount === 0) {
+        console.log(`Found no items of concern for ${userName}.`);
+    } else {
+        console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)} and ${badCommentCount} ${pluralize("comment", badCommentCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
+    }
 
     if (failsChecks) {
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
         // true for most subs, so we only do these checks if the user was going to be banned otherwise.
         const skipChecksPromises: Promise<boolean>[] = [isModerator(context, subredditName, userName)];
-        if (settings[AppSetting.ExemptApprovedUser] as boolean ?? false) {
+        if (settings[AppSetting.ExemptApprovedUser]) {
             skipChecksPromises.push(isContributor(context, subredditName, userName));
         }
 

@@ -61,6 +61,12 @@ This app uses the Community Apps platform's Redis plugin to store very basic inf
 
 All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 24 hours.
 
+## Changes in 1.7
+
+- Add user whitelist function
+- Exempts admins from all checks
+- Fix issue with identifying ban date for post-ban checks.
+
 ## Changes in 1.6
 
 - Domain detection now supports wildcarded domains e.g. *.blogspot.com
