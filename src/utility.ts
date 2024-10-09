@@ -16,19 +16,6 @@ export async function isContributor (context: TriggerContext, subredditName: str
     return filteredContributorList.length > 0;
 }
 
-export async function getAppName (context: TriggerContext) {
-    // Prevent needless calls to Reddit API by using a read-through cache.
-    const redisKey = "appName";
-    const appName = await context.redis.get(redisKey);
-    if (appName) {
-        return appName;
-    }
-
-    const appUser = await context.reddit.getAppUser();
-    await context.redis.set(redisKey, appUser.username);
-    return appUser.username;
-}
-
 export function replaceAll (input: string, pattern: string, replacement: string): string {
     return input.split(pattern).join(replacement);
 }

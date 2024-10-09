@@ -30,6 +30,9 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     }
 
     await oneOffCheckForOversizeSettings(context);
+
+    // Remove unused Redis key.
+    await context.redis.del("appName");
 }
 
 async function oneOffCheckForOversizeSettings (context: TriggerContext) {

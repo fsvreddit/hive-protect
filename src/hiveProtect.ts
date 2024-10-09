@@ -1,7 +1,7 @@
 import { TriggerContext, Post, Comment, GetUserOverviewOptions, User } from "@devvit/public-api";
 import { CommentSubmit, PostSubmit, ModAction } from "@devvit/protos";
 import { addDays, addHours, subDays, subMonths } from "date-fns";
-import { isModerator, isContributor, getAppName, replaceAll, domainFromUrlString, trimLeadingWWW, getPostOrCommentById } from "./utility.js";
+import { isModerator, isContributor, replaceAll, domainFromUrlString, trimLeadingWWW, getPostOrCommentById } from "./utility.js";
 import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
 import _ from "lodash";
@@ -541,14 +541,14 @@ export async function handleModActionEvent (event: ModAction, context: TriggerCo
     }
 }
 
-async function appUserIsModOfSub (username: string, subredditName: string, context: TriggerContext): Promise<boolean> {
+async function appUserIsModOfSub (subredditName: string, context: TriggerContext): Promise<boolean> {
     const redisKey = `appUserIsModOf~${subredditName}`;
     const cachedValue = await context.redis.get(redisKey);
     if (cachedValue) {
         return JSON.parse(cachedValue) as boolean;
     }
 
-    const isMod = await isModerator(context, subredditName, username);
+    const isMod = await isModerator(context, subredditName, context.appName);
     console.log(`App account mod of ${subredditName}? ${isMod}`);
 
     await context.redis.set(redisKey, JSON.stringify(isMod), { expiration: addDays(new Date(), 7) });
@@ -566,9 +566,8 @@ async function isUserBlockingAppAccount (userHistory: (Post | Comment)[], contex
         return false;
     }
 
-    const appUser = await getAppName(context);
     for (const subreddit of subreddits) {
-        const isModOfSub = await appUserIsModOfSub(appUser, subreddit, context);
+        const isModOfSub = await appUserIsModOfSub(subreddit, context);
         if (!isModOfSub) {
             return false;
         }
