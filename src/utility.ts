@@ -1,17 +1,9 @@
-import {Comment, Post, TriggerContext} from "@devvit/public-api";
-
-export enum ThingPrefix {
-    Comment = "t1_",
-    Account = "t2_",
-    Post = "t3_",
-    Message = "t4_",
-    Subreddit = "t5_",
-    Award = "t6_"
-}
+import { Comment, Post, TriggerContext } from "@devvit/public-api";
+import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 
 export async function isModerator (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
     try {
-        const filteredModeratorList = await context.reddit.getModerators({subredditName, username}).all();
+        const filteredModeratorList = await context.reddit.getModerators({ subredditName, username }).all();
         return filteredModeratorList.length > 0;
     } catch {
         // Gated subreddit. Assume not a mod.
@@ -20,7 +12,7 @@ export async function isModerator (context: TriggerContext, subredditName: strin
 }
 
 export async function isContributor (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
-    const filteredContributorList = await context.reddit.getApprovedUsers({subredditName, username}).all();
+    const filteredContributorList = await context.reddit.getApprovedUsers({ subredditName, username }).all();
     return filteredContributorList.length > 0;
 }
 
@@ -63,12 +55,11 @@ export function domainFromUrlString (url: string): string {
 }
 
 export function getPostOrCommentById (thingId: string, context: TriggerContext): Promise<Post | Comment> {
-    if (thingId.startsWith(ThingPrefix.Comment)) {
+    if (isCommentId(thingId)) {
         return context.reddit.getCommentById(thingId);
-    } else if (thingId.startsWith(ThingPrefix.Post)) {
+    } else if (isLinkId(thingId)) {
         return context.reddit.getPostById(thingId);
     } else {
         throw new Error(`Invalid thingId ${thingId}`);
     }
 }
-

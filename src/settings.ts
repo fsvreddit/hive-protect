@@ -1,5 +1,5 @@
-import {SettingsFormField, SettingsFormFieldValidatorEvent} from "@devvit/public-api";
-import {trimLeadingWWW} from "./utility.js";
+import { SettingsFormField, SettingsFormFieldValidatorEvent } from "@devvit/public-api";
+import { trimLeadingWWW } from "./utility.js";
 
 export enum AppSetting {
     Subreddits = "subreddits",
@@ -82,7 +82,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.Domains,
                 label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com",
-                onValidate: ({value}) => {
+                onValidate: ({ value }) => {
                     if (!value) {
                         return;
                     }
@@ -106,9 +106,9 @@ export const appSettings: SettingsFormField[] = [
                 label: "Content type to act on",
                 helpText: "If 'Posts Only' or 'Comments Only' are selected, the app will only check histories when that type of item is submitted",
                 options: [
-                    {label: "Posts and Comments", value: ContentTypeToActOn.PostsAndComments},
-                    {label: "Posts Only", value: ContentTypeToActOn.PostsOnly},
-                    {label: "Comments Only", value: ContentTypeToActOn.CommentsOnly},
+                    { label: "Posts and Comments", value: ContentTypeToActOn.PostsAndComments },
+                    { label: "Posts Only", value: ContentTypeToActOn.PostsOnly },
+                    { label: "Comments Only", value: ContentTypeToActOn.CommentsOnly },
                 ],
                 defaultValue: [ContentTypeToActOn.PostsAndComments],
                 multiSelect: false,
@@ -141,7 +141,7 @@ export const appSettings: SettingsFormField[] = [
                 label: "Number of days to monitor",
                 helpText: "Only comments within this number of days will be counted",
                 defaultValue: 28,
-                onValidate: ({value}) => {
+                onValidate: ({ value }) => {
                     if (!value || value < 1) {
                         return "Days to monitor must be at least 1";
                     }
@@ -189,9 +189,9 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.BehaviourIfPrevBan,
                 label: "Behaviour if user was previously banned by this app",
                 options: [
-                    {label: "Never re-ban", value: PrevBanBehaviour.NeverReBan},
-                    {label: "Always ban", value: PrevBanBehaviour.AlwaysReBan},
-                    {label: "Ban if new content since previous ban", value: PrevBanBehaviour.OnlyRebanIfNewContent},
+                    { label: "Never re-ban", value: PrevBanBehaviour.NeverReBan },
+                    { label: "Always ban", value: PrevBanBehaviour.AlwaysReBan },
+                    { label: "Ban if new content since previous ban", value: PrevBanBehaviour.OnlyRebanIfNewContent },
                 ],
                 defaultValue: [PrevBanBehaviour.NeverReBan],
                 multiSelect: false,
@@ -202,20 +202,20 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.BanMessage,
                 label: "Enter a ban message to send to users",
                 helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains and {{permalink}} with the latest post or comment that was detected.",
-                onValidate: ({value}) => textFieldIsUnderLimit(value, BAN_MESSAGE_MAX_LENGTH),
+                onValidate: ({ value }) => textFieldIsUnderLimit(value, BAN_MESSAGE_MAX_LENGTH),
             },
             {
                 type: "string",
                 name: AppSetting.BanNote,
                 label: "Enter a note to put in the ban log (optional)",
                 helpText: "Placeholder supported: {{sublist}}, {{domainlist}}. These will be replaced with a comma-separated list of the matched subs or domains",
-                onValidate: ({value}) => textFieldIsUnderLimit(value, BAN_NOTE_MAX_LENGTH),
+                onValidate: ({ value }) => textFieldIsUnderLimit(value, BAN_NOTE_MAX_LENGTH),
             },
             {
                 type: "number",
                 name: AppSetting.BanDuration,
                 label: "Duration of ban in days (if 0 or blank, defaults to permanent)",
-                onValidate: ({value}) => {
+                onValidate: ({ value }) => {
                     if (value && (value < 0 || value > 999)) {
                         return "Ban duration must be a number between 0 and 999";
                     }

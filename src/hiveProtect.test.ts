@@ -1,10 +1,10 @@
-import {BadSubItem, Domain, isDomainInList, isOverThreshold, MockSubItem} from "./hiveProtect.js";
+import { BadSubItem, Domain, isDomainInList, isOverThreshold, MockSubItem } from "./hiveProtect.js";
 
 test("Exact domain", () => {
     const input = "bbc.co.uk";
     const domains: Domain[] = [
-        {domain: "bbc.co.uk", wildcard: false},
-        {domain: "theguardian.com", wildcard: false},
+        { domain: "bbc.co.uk", wildcard: false },
+        { domain: "theguardian.com", wildcard: false },
     ];
 
     expect(isDomainInList(input, domains)).toBeTruthy();
@@ -13,8 +13,8 @@ test("Exact domain", () => {
 test("Domain not in list", () => {
     const input = "thetimes.co.uk";
     const domains: Domain[] = [
-        {domain: "bbc.co.uk", wildcard: false},
-        {domain: "theguardian.com", wildcard: false},
+        { domain: "bbc.co.uk", wildcard: false },
+        { domain: "theguardian.com", wildcard: false },
     ];
 
     expect(isDomainInList(input, domains)).toBeFalsy();
@@ -23,8 +23,8 @@ test("Domain not in list", () => {
 test("Wildcarded domain matched", () => {
     const input = "lucid.substack.com";
     const domains: Domain[] = [
-        {domain: "bbc.co.uk", wildcard: false},
-        {domain: "substack.com", wildcard: true},
+        { domain: "bbc.co.uk", wildcard: false },
+        { domain: "substack.com", wildcard: true },
     ];
 
     expect(isDomainInList(input, domains)).toBeTruthy();
@@ -33,8 +33,8 @@ test("Wildcarded domain matched", () => {
 test("Wildcarded domain matched without subdomain", () => {
     const input = "substack.com";
     const domains: Domain[] = [
-        {domain: "bbc.co.uk", wildcard: false},
-        {domain: "substack.com", wildcard: true},
+        { domain: "bbc.co.uk", wildcard: false },
+        { domain: "substack.com", wildcard: true },
     ];
 
     expect(isDomainInList(input, domains)).toBeTruthy();
@@ -43,7 +43,7 @@ test("Wildcarded domain matched without subdomain", () => {
 test("Wildcarded domain shouldn't match fake domains", () => {
     const input = "notthebbc.co.uk";
     const domains: Domain[] = [
-        {domain: "bbc.co.uk", wildcard: true},
+        { domain: "bbc.co.uk", wildcard: true },
     ];
 
     expect(isDomainInList(input, domains)).toBeFalsy();
@@ -52,8 +52,8 @@ test("Wildcarded domain shouldn't match fake domains", () => {
 test("Subdomain not in list", () => {
     const input = "lucid.substack.com";
     const domains: Domain[] = [
-        {domain: "bbc.co.uk", wildcard: false},
-        {domain: "substack.com", wildcard: false},
+        { domain: "bbc.co.uk", wildcard: false },
+        { domain: "substack.com", wildcard: false },
     ];
 
     expect(isDomainInList(input, domains)).toBeFalsy();

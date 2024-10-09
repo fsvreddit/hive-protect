@@ -1,16 +1,17 @@
-import {TriggerContext, Post, Comment, GetUserOverviewOptions, User} from "@devvit/public-api";
-import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
-import {addDays, addHours, subDays, subMonths} from "date-fns";
-import {isModerator, isContributor, getAppName, replaceAll, ThingPrefix, domainFromUrlString, trimLeadingWWW, getPostOrCommentById} from "./utility.js";
-import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
-import {setCleanupForUser} from "./cleanupTasks.js";
+import { TriggerContext, Post, Comment, GetUserOverviewOptions, User } from "@devvit/public-api";
+import { CommentSubmit, PostSubmit, ModAction } from "@devvit/protos";
+import { addDays, addHours, subDays, subMonths } from "date-fns";
+import { isModerator, isContributor, getAppName, replaceAll, domainFromUrlString, trimLeadingWWW, getPostOrCommentById } from "./utility.js";
+import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
+import { setCleanupForUser } from "./cleanupTasks.js";
 import _ from "lodash";
 import pluralize from "pluralize";
+import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
 export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.post || !event.subreddit || event.author.id === context.appAccountId) {
+    if (!event.author?.name || !event.post || !event.subreddit || event.author.name === context.appName) {
         console.log("Event is not in the right state.");
         return;
     }
@@ -19,7 +20,7 @@ export async function handlePostSubmitEvent (event: PostSubmit, context: Trigger
 }
 
 export async function handleCommentSubmitEvent (event: CommentSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.comment || !event.subreddit || event.author.id === context.appAccountId) {
+    if (!event.author?.name || !event.comment || !event.subreddit || event.author.name === context.appName) {
         console.log("Event is not in the right state.");
         return;
     }
@@ -42,9 +43,9 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
             const hasBeenReported = await context.redis.get(redisKey);
             if (!hasBeenReported) {
                 const target = await getPostOrCommentById(targetId, context);
-                await context.reddit.report(target, {reason: "User may be blocking bot. Check history for subs not modded by Hive Protector."});
+                await context.reddit.report(target, { reason: "User may be blocking bot. Check history for subs not modded by Hive Protector." });
             }
-            await context.redis.set(redisKey, "true", {expiration: addDays(new Date(), 7)});
+            await context.redis.set(redisKey, "true", { expiration: addDays(new Date(), 7) });
         }
         return;
     }
@@ -55,7 +56,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
     // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
     const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
-    if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
+    if ((typesToActOn === ContentTypeToActOn.PostsOnly && isCommentId(targetId)) || (typesToActOn === ContentTypeToActOn.CommentsOnly && isLinkId(targetId))) {
         // Invalid type of item to check.
         return;
     }
@@ -123,8 +124,8 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
             if (shouldReport) {
                 reportReason = replaceAll(reportReason, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
                 reportReason = replaceAll(reportReason, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
-                await context.reddit.report(target, {reason: reportReason});
-                await context.redis.set(`itemreported~${targetId}`, new Date().getTime.toString(), {expiration: addDays(new Date(), 7)});
+                await context.reddit.report(target, { reason: reportReason });
+                await context.redis.set(`itemreported~${targetId}`, new Date().getTime.toString(), { expiration: addDays(new Date(), 7) });
                 console.log(`Reported comment ${targetId}`);
             }
         }
@@ -144,8 +145,8 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
 
         replyMessage = `${replyMessage.trim()}\n\n*I am a bot, and this action was performed automatically. Please [contact the moderators of this subreddit](/message/compose/?to=/r/${subredditName}) if you have any questions or concerns.*`;
 
-        const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
-        const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean | undefined ?? false);
+        const newComment = await context.reddit.submitComment({ id: targetId, text: replyMessage });
+        const shouldSticky = isLinkId(targetId) && (settings[AppSetting.StickyReply] as boolean | undefined ?? false);
         await newComment.distinguish(shouldSticky);
         if (settings[AppSetting.LockReply]) {
             await newComment.lock();
@@ -182,11 +183,11 @@ function getLatestResultKey (username: string) {
 }
 
 interface ProblematicSubsResult {
-    badSubs: string[],
-    badDomains: string[],
-    itemPermalink?: string,
-    userBannable: boolean,
-    userBlocking: boolean,
+    badSubs: string[];
+    badDomains: string[];
+    itemPermalink?: string;
+    userBannable: boolean;
+    userBlocking: boolean;
 }
 
 export async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
@@ -210,16 +211,16 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
 }
 
 export interface MockSubItem {
-    createdAt: Date,
-    subredditName: string,
-    url: string,
-    permalink: string,
+    createdAt: Date;
+    subredditName: string;
+    url: string;
+    permalink: string;
 }
 
 export interface BadSubItem {
-    item: Post | Comment | MockSubItem,
-    foundViaSubreddit: boolean,
-    foundViaDomain: boolean,
+    item: Post | Comment | MockSubItem;
+    foundViaSubreddit: boolean;
+    foundViaDomain: boolean;
 }
 
 export function isOverThreshold (items: BadSubItem[], combinedThreshold: number, postThreshold: number, commentThreshold: number, minSubCount: number): boolean {
@@ -231,7 +232,7 @@ export function isOverThreshold (items: BadSubItem[], combinedThreshold: number,
         const itemsViaDomainCount = items.filter(x => x.foundViaDomain).length;
         const distinctSubCount = _.uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
 
-        return itemsViaDomainCount >= threshold || items.length >= threshold && distinctSubCount >= minSubCount;
+        return itemsViaDomainCount >= threshold || (items.length >= threshold && distinctSubCount >= minSubCount);
     }
 
     if (combinedThreshold && isOver(items, combinedThreshold, minSubCount)) {
@@ -250,12 +251,12 @@ export function isOverThreshold (items: BadSubItem[], combinedThreshold: number,
 }
 
 export interface Domain {
-    domain: string,
-    wildcard: boolean,
+    domain: string;
+    wildcard: boolean;
 }
 
 export function isDomainInList (domain: string, domainList: Domain[]): boolean {
-    return domainList.some(item => domain === item.domain || item.wildcard && domain.endsWith(`.${item.domain}`));
+    return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
 export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
@@ -304,7 +305,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const domainList = domains.toLowerCase().split(",")
         .map(domain => trimLeadingWWW(domain.trim()))
         .filter(domain => domain !== "")
-        .map(domain => ({domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.")} as Domain));
+        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
 
     if (subredditList.length === 0 && domainList.length === 0) {
         console.log("No subreddits or domains defined.");
@@ -321,7 +322,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     } as GetUserOverviewOptions;
 
     try {
-        if (combinedThreshold || postThreshold && commentThreshold) {
+        if (combinedThreshold || (postThreshold && commentThreshold)) {
             userContent = await context.reddit.getCommentsAndPostsByUser(userOverviewOptions).all();
         } else if (postThreshold) {
             userContent = await context.reddit.getPostsByUser(userOverviewOptions).all();
@@ -383,7 +384,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                     case PrevBanBehaviour.OnlyRebanIfNewContent:
                         console.log("App is configured to only ban based on content since last ban. Disregarding previous content.");
                         badSubItems = badSubItems.filter(item => item.item.createdAt > previousBan);
-                        failsChecks = failsChecks = hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
+                        failsChecks = failsChecks === hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
                         userBannable = failsChecks;
                         break;
                     case PrevBanBehaviour.AlwaysReBan:
@@ -461,7 +462,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     } else {
         cacheExpiryTime = addHours(new Date(), 6);
     }
-    await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), {expiration: cacheExpiryTime});
+    await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), { expiration: cacheExpiryTime });
 
     return result;
 }
@@ -550,7 +551,7 @@ async function appUserIsModOfSub (username: string, subredditName: string, conte
     const isMod = await isModerator(context, subredditName, username);
     console.log(`App account mod of ${subredditName}? ${isMod}`);
 
-    await context.redis.set(redisKey, JSON.stringify(isMod), {expiration: addDays(new Date(), 7)});
+    await context.redis.set(redisKey, JSON.stringify(isMod), { expiration: addDays(new Date(), 7) });
     return isMod;
 }
 
