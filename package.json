@@ -9,8 +9,8 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/public-api": "0.11.0-next-2024-10-08-c75c09c35.0",
-    "@devvit/shared-types": "^0.11.0-next-2024-10-08-c75c09c35.0",
+    "@devvit/public-api": "0.11.0",
+    "@devvit/shared-types": "0.11.0",
     "@types/lodash": "^4.14.202",
     "@types/pluralize": "^0.0.33",
     "date-fns": "^4.0.0",
