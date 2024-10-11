@@ -12,6 +12,6 @@ jobs:
               node-version: '20.x'
           - run: npm install
           - run: npx tsc --build
-          - run: npx tsc --clean
+          - run: npx tsc --build --clean
           - run: npm run test
           - run: npx eslint
