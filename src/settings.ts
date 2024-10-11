@@ -21,6 +21,8 @@ export enum AppSetting {
     BanNote = "bannote",
     BanDuration = "banduration",
     RemoveEnabled = "removeenabled",
+    RemoveAsSpam = "removeAsSpam",
+    PurgeContent = "purgeContent",
     ReplyTemplate = "removalreasontemplate",
     LockReply = "lockreply",
     StickyReply = "stickyreply",
@@ -41,6 +43,14 @@ export enum ContentTypeToActOn {
     PostsAndComments = "all",
     PostsOnly = "posts",
     CommentsOnly = "comments",
+}
+
+export enum PurgeOption {
+    None = "none",
+    LastDay = "day",
+    LastWeek = "week",
+    LastMonth = "month",
+    AllTime = "allTime",
 }
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
@@ -242,6 +252,27 @@ export const appSettings: SettingsFormField[] = [
                         name: AppSetting.RemoveEnabled,
                         label: "Remove posts and comments over threshold",
                         defaultValue: true,
+                    },
+                    {
+                        type: "boolean",
+                        name: AppSetting.RemoveAsSpam,
+                        label: "Remove as spam",
+                        helpText: "If disabled, content will be removed normally",
+                        defaultValue: false,
+                    },
+                    {
+                        type: "select",
+                        name: AppSetting.PurgeContent,
+                        label: "Additionally, remove other content for the user from your subreddit",
+                        options: [
+                            { label: "Don't remove other content", value: PurgeOption.None },
+                            { label: "Remove content from last 24h", value: PurgeOption.LastDay },
+                            { label: "Remove content from last week", value: PurgeOption.LastWeek },
+                            { label: "Remove content from last month", value: PurgeOption.LastMonth },
+                            { label: "Remove all content", value: PurgeOption.AllTime },
+                        ],
+                        defaultValue: [PurgeOption.None],
+                        multiSelect: false,
                     },
                 ],
             },

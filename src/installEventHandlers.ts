@@ -52,7 +52,6 @@ async function oneOffCheckForOversizeSettings (context: TriggerContext) {
 
     if (banUser && (banMessageTooLong || banNoteTooLong)) {
         const subreddit = await context.reddit.getCurrentSubreddit();
-        const appUser = await context.reddit.getAppUser();
 
         let modmail = `Thanks for upgrading Hive Protector on /r/${subreddit.name}.\n\n`;
         modmail += `There's an issue with  the [settings](https://developers.reddit.com/r/${subreddit.name}/apps/hive-protect) that needs to be addressed for this app to work properly.\n\n`;
@@ -65,11 +64,10 @@ async function oneOffCheckForOversizeSettings (context: TriggerContext) {
 
         modmail += "\nIt is likely that Hive Protector will not be able to ban users until this is resolved. Sorry for the inconvenience.";
 
-        await context.reddit.modMail.createConversation({
+        await context.reddit.sendPrivateMessage({
             subject: "Hive Protector Configuration Issue",
-            subredditName: subreddit.name,
-            to: appUser.username,
-            body: modmail,
+            to: `/r/${subreddit.name}`,
+            text: modmail,
         });
     }
 
