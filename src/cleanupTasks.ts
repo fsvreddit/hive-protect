@@ -18,11 +18,7 @@ async function userActive (username: string, context: TriggerContext): Promise<b
         //
     }
 
-    if (user) {
-        return true;
-    } else {
-        return false;
-    }
+    return user !== undefined;
 }
 
 interface UserActive {
