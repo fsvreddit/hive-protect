@@ -85,9 +85,9 @@ export async function cleanupDeletedAccounts (_: unknown, context: TriggerContex
  * Grab as many users previously banned by this user as we can, and add to cleanup list.
  */
 export async function addCleanupEntriesForBannedAccounts (context: TriggerContext) {
-    const subreddit = await context.reddit.getCurrentSubreddit();
+    const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
     const modLog = await context.reddit.getModerationLog({
-        subredditName: subreddit.name,
+        subredditName,
         moderatorUsernames: [context.appName],
         type: "banuser",
         limit: 1000,
