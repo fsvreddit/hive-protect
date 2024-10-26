@@ -169,6 +169,7 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.ExemptApprovedUser,
                 label: "Exempt approved users",
                 helpText: "If this option is selected, approved users will not be checked.",
+                defaultValue: false,
             },
             {
                 type: "string",
