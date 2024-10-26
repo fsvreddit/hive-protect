@@ -18,10 +18,10 @@ export async function sendModmail (target: Post | Comment, problematicItemsResul
 
     message += `\nUser was caught after making [this post or comment](${target.permalink}).`;
 
-    await context.reddit.sendPrivateMessage({
+    await context.reddit.modMail.createModInboxConversation({
+        subredditId: context.subredditId,
         subject: `Hive Protector notice for /u/${target.authorName}`,
-        to: `/r/${target.subredditName}`,
-        text: message,
+        bodyMarkdown: message,
     });
 
     console.log("Modmail sent.");
