@@ -336,7 +336,6 @@ export const appSettings: SettingsFormField[] = [
                         type: "boolean",
                         name: AppSetting.ModmailEnabled,
                         label: "Send modmail if user fails checks",
-                        helpText: "Remove 'modmail' permission from /u/hive-protect if you want these to go in the inbox",
                         defaultValue: false,
                     },
                 ],

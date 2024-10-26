@@ -28,8 +28,6 @@ If you set this to "Never" (the default), the user will never be banned a second
 
 You can choose to make a report on the user, remove their post/comment, reply to the user or notify sub moderators silently via Modmail.
 
-If the modmail option is used, you may want to remove the "modmail" permission from the app otherwise modmails will go into "Mod Notifications" rather than in the inbox.
-
 ## Operation notes
 
 The app will only check a user once every six hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
