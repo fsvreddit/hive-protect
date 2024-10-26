@@ -1,7 +1,7 @@
-import {TriggerContext} from "@devvit/public-api";
-import {AppInstall, AppUpgrade} from "@devvit/protos";
-import {addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries} from "./cleanupTasks.js";
-import {AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH} from "./settings.js";
+import { TriggerContext } from "@devvit/public-api";
+import { AppInstall, AppUpgrade } from "@devvit/protos";
+import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
+import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
     // Clean up old redis key, no longer used.
@@ -30,6 +30,9 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     }
 
     await oneOffCheckForOversizeSettings(context);
+
+    // Remove unused Redis key.
+    await context.redis.del("appName");
 }
 
 async function oneOffCheckForOversizeSettings (context: TriggerContext) {
@@ -48,11 +51,10 @@ async function oneOffCheckForOversizeSettings (context: TriggerContext) {
     const banNoteTooLong = banNote && banNote.length > BAN_NOTE_MAX_LENGTH;
 
     if (banUser && (banMessageTooLong || banNoteTooLong)) {
-        const subreddit = await context.reddit.getCurrentSubreddit();
-        const appUser = await context.reddit.getAppUser();
+        const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
 
-        let modmail = `Thanks for upgrading Hive Protector on /r/${subreddit.name}.\n\n`;
-        modmail += `There's an issue with  the [settings](https://developers.reddit.com/r/${subreddit.name}/apps/hive-protect) that needs to be addressed for this app to work properly.\n\n`;
+        let modmail = `Thanks for upgrading Hive Protector on /r/${subredditName}.\n\n`;
+        modmail += `There's an issue with  the [settings](https://developers.reddit.com/r/${subredditName}/apps/hive-protect) that needs to be addressed for this app to work properly.\n\n`;
         if (banMessageTooLong) {
             modmail += `* The Ban Message is too long - it needs to be under ${BAN_MESSAGE_MAX_LENGTH} characters long.\n`;
         }
@@ -62,11 +64,10 @@ async function oneOffCheckForOversizeSettings (context: TriggerContext) {
 
         modmail += "\nIt is likely that Hive Protector will not be able to ban users until this is resolved. Sorry for the inconvenience.";
 
-        await context.reddit.modMail.createConversation({
+        await context.reddit.sendPrivateMessage({
             subject: "Hive Protector Configuration Issue",
-            subredditName: subreddit.name,
-            to: appUser.username,
-            body: modmail,
+            to: `/r/${subredditName}`,
+            text: modmail,
         });
     }
 

@@ -1,16 +1,23 @@
-import {TriggerContext, Post, Comment, GetUserOverviewOptions, User} from "@devvit/public-api";
-import {CommentSubmit, PostSubmit, ModAction} from "@devvit/protos";
-import {addDays, addHours, subDays, subMonths} from "date-fns";
-import {isModerator, isContributor, getAppName, replaceAll, ThingPrefix, domainFromUrlString, trimLeadingWWW, getPostOrCommentById} from "./utility.js";
-import {AppSetting, ContentTypeToActOn, PrevBanBehaviour} from "./settings.js";
-import {setCleanupForUser} from "./cleanupTasks.js";
+import { TriggerContext, Post, Comment, GetUserOverviewOptions, User } from "@devvit/public-api";
+import { CommentSubmit, PostSubmit, ModAction } from "@devvit/protos";
+import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
+import { addDays, addHours, subDays } from "date-fns";
+import { isModerator, isContributor, domainFromUrlString, trimLeadingWWW, getPostOrCommentById } from "./utility.js";
+import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
+import { setCleanupForUser } from "./cleanupTasks.js";
+import { isUserBlockingAppAccount } from "./blockChecker.js";
+import { reportContent } from "./actions/report.js";
+import { removeContent } from "./actions/remove.js";
+import { replyToContent } from "./actions/reply.js";
+import { sendModmail } from "./actions/modmail.js";
+import { banUser } from "./actions/ban.js";
 import _ from "lodash";
 import pluralize from "pluralize";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
 export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.post || !event.subreddit || event.author.id === context.appAccountId) {
+    if (!event.author?.name || !event.post || !event.subreddit || event.author.name === context.appName) {
         console.log("Event is not in the right state.");
         return;
     }
@@ -19,7 +26,7 @@ export async function handlePostSubmitEvent (event: PostSubmit, context: Trigger
 }
 
 export async function handleCommentSubmitEvent (event: CommentSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.comment || !event.subreddit || event.author.id === context.appAccountId) {
+    if (!event.author?.name || !event.comment || !event.subreddit || event.author.name === context.appName) {
         console.log("Event is not in the right state.");
         return;
     }
@@ -42,9 +49,9 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
             const hasBeenReported = await context.redis.get(redisKey);
             if (!hasBeenReported) {
                 const target = await getPostOrCommentById(targetId, context);
-                await context.reddit.report(target, {reason: "User may be blocking bot. Check history for subs not modded by Hive Protector."});
+                await context.reddit.report(target, { reason: "User may be blocking bot. Check history for subs not modded by Hive Protector." });
             }
-            await context.redis.set(redisKey, "true", {expiration: addDays(new Date(), 7)});
+            await context.redis.set(redisKey, "true", { expiration: addDays(new Date(), 7) });
         }
         return;
     }
@@ -55,7 +62,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
     // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
     const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
-    if (typesToActOn === ContentTypeToActOn.PostsOnly && targetId.startsWith(ThingPrefix.Comment) || typesToActOn === ContentTypeToActOn.CommentsOnly && targetId.startsWith(ThingPrefix.Post)) {
+    if ((typesToActOn === ContentTypeToActOn.PostsOnly && isCommentId(targetId)) || (typesToActOn === ContentTypeToActOn.CommentsOnly && isLinkId(targetId))) {
         // Invalid type of item to check.
         return;
     }
@@ -88,14 +95,13 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     }
 
     const banEnabled = settings[AppSetting.BanEnabled] as boolean | undefined ?? true;
-    const removeEnabled = settings[AppSetting.RemoveEnabled] as boolean | undefined ?? true;
-    const reportEnabled = settings[AppSetting.ReportEnabled] as boolean | undefined ?? false;
-    const modmailEnabled = settings[AppSetting.ModmailEnabled] as boolean | undefined ?? false;
 
     const target = await getPostOrCommentById(targetId, context);
 
+    const actions: Promise<void>[] = [];
+
     if (banEnabled && problematicItemsResult.userBannable) {
-        await banUser(context, subredditName, userName, problematicItemsResult);
+        actions.push(banUser(context, subredditName, userName, problematicItemsResult));
     }
 
     if (!settings[AppSetting.ApplyBanBehavioursToOtherActions] && !problematicItemsResult.userBannable) {
@@ -103,90 +109,25 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         return;
     }
 
-    if (reportEnabled) {
-        let reportReason = settings[AppSetting.ReportTemplate] as string | undefined;
-        if (reportReason && !removeEnabled) {
-            const whitelistThreshold = settings[AppSetting.ReportNumber] as number | undefined ?? 3;
-            let shouldReport = true;
-            if (whitelistThreshold) {
-                try {
-                    const currentApprovalCount = await context.redis.zScore(APPROVALS_KEY, userName);
-                    if (currentApprovalCount !== undefined && currentApprovalCount >= whitelistThreshold) {
-                        console.log(`User ${userName} has too many approvals to report.`);
-                        shouldReport = false;
-                    }
-                } catch {
-                    // User has no approvals, so always report.
-                }
-            }
-
-            if (shouldReport) {
-                reportReason = replaceAll(reportReason, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
-                reportReason = replaceAll(reportReason, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
-                await context.reddit.report(target, {reason: reportReason});
-                await context.redis.set(`itemreported~${targetId}`, new Date().getTime.toString(), {expiration: addDays(new Date(), 7)});
-                console.log(`Reported comment ${targetId}`);
-            }
-        }
-    }
-
-    if (removeEnabled) {
-        await context.reddit.remove(targetId, true);
-        console.log(`Removed item ${targetId}`);
-    }
-
-    let replyMessage = settings[AppSetting.ReplyTemplate] as string | undefined;
-    if (replyMessage) {
-        replyMessage = replaceAll(replyMessage, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
-        replyMessage = replaceAll(replyMessage, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
-        replyMessage = replaceAll(replyMessage, "{{permalink}}", problematicItemsResult.itemPermalink ?? "");
-        replyMessage = replaceAll(replyMessage, "{{username}}", userName);
-
-        replyMessage = `${replyMessage.trim()}\n\n*I am a bot, and this action was performed automatically. Please [contact the moderators of this subreddit](/message/compose/?to=/r/${subredditName}) if you have any questions or concerns.*`;
-
-        const newComment = await context.reddit.submitComment({id: targetId, text: replyMessage});
-        const shouldSticky = targetId.startsWith(ThingPrefix.Post) && (settings[AppSetting.StickyReply] as boolean | undefined ?? false);
-        await newComment.distinguish(shouldSticky);
-        if (settings[AppSetting.LockReply]) {
-            await newComment.lock();
-        }
-        console.log(`Reply left on ${targetId}`);
-    }
-
-    if (modmailEnabled) {
-        let message = `User /u/${userName} has been identified by Hive Protector as potentially having undesirable history.\n\n`;
-        if (problematicItemsResult.badSubs.length > 0) {
-            message += `* Problematic Subreddits found: ${problematicItemsResult.badSubs.join(", ")}\n`;
-        }
-
-        if (problematicItemsResult.badDomains.length > 0) {
-            message += `* Problematic Domains found: ${problematicItemsResult.badDomains.join(", ")}\n`;
-        }
-
-        message += `\nUser was caught after making [this post or comment](${target.permalink}).`;
-
-        const appUser = await context.reddit.getAppUser();
-        await context.reddit.modMail.createConversation({
-            subject: `Hive Protector notice for /u/${userName}`,
-            body: message,
-            subredditName,
-            to: appUser.username,
-        });
-
-        console.log("Modmail sent.");
-    }
+    // Perform actions!
+    actions.push(
+        reportContent(target, problematicItemsResult, settings, context),
+        removeContent(target, settings, context),
+        replyToContent(target, problematicItemsResult, settings, context),
+        sendModmail(target, problematicItemsResult, settings, context),
+    );
 }
 
 function getLatestResultKey (username: string) {
     return `participation-lastcheck-${username}`;
 }
 
-interface ProblematicSubsResult {
-    badSubs: string[],
-    badDomains: string[],
-    itemPermalink?: string,
-    userBannable: boolean,
-    userBlocking: boolean,
+export interface ProblematicSubsResult {
+    badSubs: string[];
+    badDomains: string[];
+    itemPermalink?: string;
+    userBannable: boolean;
+    userBlocking: boolean;
 }
 
 export async function lastCheckResult (context: TriggerContext, userName: string): Promise<ProblematicSubsResult | undefined> {
@@ -210,16 +151,16 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
 }
 
 export interface MockSubItem {
-    createdAt: Date,
-    subredditName: string,
-    url: string,
-    permalink: string,
+    createdAt: Date;
+    subredditName: string;
+    url: string;
+    permalink: string;
 }
 
 export interface BadSubItem {
-    item: Post | Comment | MockSubItem,
-    foundViaSubreddit: boolean,
-    foundViaDomain: boolean,
+    item: Post | Comment | MockSubItem;
+    foundViaSubreddit: boolean;
+    foundViaDomain: boolean;
 }
 
 export function isOverThreshold (items: BadSubItem[], combinedThreshold: number, postThreshold: number, commentThreshold: number, minSubCount: number): boolean {
@@ -231,7 +172,7 @@ export function isOverThreshold (items: BadSubItem[], combinedThreshold: number,
         const itemsViaDomainCount = items.filter(x => x.foundViaDomain).length;
         const distinctSubCount = _.uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
 
-        return itemsViaDomainCount >= threshold || items.length >= threshold && distinctSubCount >= minSubCount;
+        return itemsViaDomainCount >= threshold || (items.length >= threshold && distinctSubCount >= minSubCount);
     }
 
     if (combinedThreshold && isOver(items, combinedThreshold, minSubCount)) {
@@ -250,12 +191,12 @@ export function isOverThreshold (items: BadSubItem[], combinedThreshold: number,
 }
 
 export interface Domain {
-    domain: string,
-    wildcard: boolean,
+    domain: string;
+    wildcard: boolean;
 }
 
 export function isDomainInList (domain: string, domainList: Domain[]): boolean {
-    return domainList.some(item => domain === item.domain || item.wildcard && domain.endsWith(`.${item.domain}`));
+    return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
 export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
@@ -304,7 +245,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const domainList = domains.toLowerCase().split(",")
         .map(domain => trimLeadingWWW(domain.trim()))
         .filter(domain => domain !== "")
-        .map(domain => ({domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.")} as Domain));
+        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
 
     if (subredditList.length === 0 && domainList.length === 0) {
         console.log("No subreddits or domains defined.");
@@ -321,7 +262,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     } as GetUserOverviewOptions;
 
     try {
-        if (combinedThreshold || postThreshold && commentThreshold) {
+        if (combinedThreshold || (postThreshold && commentThreshold)) {
             userContent = await context.reddit.getCommentsAndPostsByUser(userOverviewOptions).all();
         } else if (postThreshold) {
             userContent = await context.reddit.getPostsByUser(userOverviewOptions).all();
@@ -383,7 +324,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                     case PrevBanBehaviour.OnlyRebanIfNewContent:
                         console.log("App is configured to only ban based on content since last ban. Disregarding previous content.");
                         badSubItems = badSubItems.filter(item => item.item.createdAt > previousBan);
-                        failsChecks = failsChecks = hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
+                        failsChecks = failsChecks === hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
                         userBannable = failsChecks;
                         break;
                     case PrevBanBehaviour.AlwaysReBan:
@@ -461,50 +402,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     } else {
         cacheExpiryTime = addHours(new Date(), 6);
     }
-    await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), {expiration: cacheExpiryTime});
+    await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), { expiration: cacheExpiryTime });
 
     return result;
-}
-
-async function banUser (context: TriggerContext, subredditName: string, userName: string, problematicItemsResult: ProblematicSubsResult): Promise<void> {
-    const settings = await context.settings.getAll();
-
-    let banMessage = settings[AppSetting.BanMessage] as string | undefined;
-    if (banMessage) {
-        banMessage = banMessage.replace("{{sublist}}", problematicItemsResult.badSubs.join(", "));
-        banMessage = banMessage.replace("{{domainlist}}", problematicItemsResult.badDomains.join(", "));
-        banMessage = banMessage.replace("{{permalink}}", problematicItemsResult.itemPermalink ?? "");
-        banMessage = banMessage.replace("{{username}}", userName);
-    }
-    const banNote = settings[AppSetting.BanNote] as string | undefined;
-
-    let banDuration = settings[AppSetting.BanDuration] as number | undefined;
-    if (banDuration === 0) {
-        banDuration = undefined;
-    }
-
-    let banReason: string;
-    if (banNote) {
-        banReason = `Hive Protector: ${banNote}`;
-    } else {
-        banReason = "Banned by Hive Protector. Matches in {{sublist}}";
-    }
-
-    banReason = banReason.replace("{{sublist}}", problematicItemsResult.badSubs.join(", "));
-    banReason = banReason.replace("{{domainlist}}", problematicItemsResult.badDomains.join(", "));
-
-    await context.reddit.banUser({
-        username: userName,
-        reason: banReason.slice(0, 100),
-        message: banMessage?.slice(0, 1000),
-        subredditName,
-        duration: banDuration,
-    });
-
-    await context.redis.set(`participation-prevbanned-${userName}`, new Date().getTime().toString());
-    await setCleanupForUser(userName, context);
-
-    console.log(`Banned ${userName} from ${subredditName}`);
 }
 
 export async function handleModActionEvent (event: ModAction, context: TriggerContext) {
@@ -516,10 +416,10 @@ export async function handleModActionEvent (event: ModAction, context: TriggerCo
 
     if (event.targetUser && (event.action === "approvecomment" || event.action === "approvelink")) {
         let targetId: string | undefined;
-        if (event.action === "approvecomment" && event.targetComment) {
-            targetId = event.targetComment.id;
-        } else if (event.action === "approvelink" && event.targetPost) {
-            targetId = event.targetPost.id;
+        if (event.action === "approvecomment") {
+            targetId = event.targetComment?.id;
+        } else {
+            targetId = event.targetPost?.id;
         }
 
         if (!targetId) {
@@ -538,53 +438,4 @@ export async function handleModActionEvent (event: ModAction, context: TriggerCo
         await setCleanupForUser(event.targetUser.name, context);
         console.log(`Approved a reported comment by ${event.targetUser.name}. Approval counter is now ${newApprovalCount}.`);
     }
-}
-
-async function appUserIsModOfSub (username: string, subredditName: string, context: TriggerContext): Promise<boolean> {
-    const redisKey = `appUserIsModOf~${subredditName}`;
-    const cachedValue = await context.redis.get(redisKey);
-    if (cachedValue) {
-        return JSON.parse(cachedValue) as boolean;
-    }
-
-    const isMod = await isModerator(context, subredditName, username);
-    console.log(`App account mod of ${subredditName}? ${isMod}`);
-
-    await context.redis.set(redisKey, JSON.stringify(isMod), {expiration: addDays(new Date(), 7)});
-    return isMod;
-}
-
-async function isUserBlockingAppAccount (userHistory: (Post | Comment)[], context: TriggerContext): Promise<boolean> {
-    if (userHistory.length < 20) {
-        // Immature account, may not have accrued enough history to be reasonably confident about blocking.
-        return false;
-    }
-
-    const subreddits = _.uniq(userHistory.filter(x => x.subredditId !== context.subredditId).map(x => x.subredditName));
-    if (subreddits.length === 0) {
-        return false;
-    }
-
-    const appUser = await getAppName(context);
-    for (const subreddit of subreddits) {
-        const isModOfSub = await appUserIsModOfSub(appUser, subreddit, context);
-        if (!isModOfSub) {
-            return false;
-        }
-    }
-
-    if (subreddits.length < 3) {
-        // Too few subreddits to determine if they may be blocking.
-        return false;
-    }
-
-    const user = await userHistory[0].getAuthor();
-    if (user) {
-        if (user.createdAt > subMonths(new Date(), 1)) {
-            // Immature account, may not have accrued enough history to be reasonably confident about blocking.
-            return false;
-        }
-    }
-
-    return true;
 }

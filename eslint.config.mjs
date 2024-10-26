@@ -1,11 +1,19 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
+import stylistic from '@stylistic/eslint-plugin'
 import vitest from "@vitest/eslint-plugin"
 
 export default tseslint.config(
     eslint.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     ...tseslint.configs.stylisticTypeChecked,
+    stylistic.configs.customize({
+        indent: 4,
+        quotes: "double",
+        semi: true,
+        quoteProps: "consistent-as-needed",
+        braceStyle: "1tbs",
+    }),
     {
         files: ["**/*.test.ts"],
         plugins: {
@@ -18,7 +26,7 @@ export default tseslint.config(
         }
     },
     {
-        files: ["**/*.ts", "**/*.tsx", "eslint.config.mjs"],
+        files: ["**/*.ts", "**/*.tsx"],
 
         languageOptions: {
             parserOptions: {
@@ -32,119 +40,49 @@ export default tseslint.config(
             "eqeqeq": ["error", "always", {
                 null: "ignore",
             }],
+            "no-self-compare": "error",
+            "no-template-curly-in-string": "error",
+            "no-useless-assignment": "error",
+            "no-nested-ternary": "error",
+            "no-return-assign": "error",
+            "no-sequences": "error",
+            "no-var": "error",
+            "arrow-body-style": ["error", "as-needed"],
+            "func-style": ["error", "declaration", {
+                allowArrowFunctions: true,
+            }],
+            "curly": ["error", "all"],
+            "object-shorthand": ["error", "always"],
+            "operator-assignment": ["error", "always"],
+            "camelcase": ["error", {
+                properties: "always",
+            }],
 
             // Rules I don't want
             "@typescript-eslint/restrict-template-expressions": "off",
 
             // Extra code styling rules
-            "comma-spacing": "error",
-            "eol-last": "error",
-            "key-spacing": "error",
-            "keyword-spacing": "error",
-            "new-parens": "error",
-            "no-multi-spaces": "error",
-            "no-sequences": "error",
-            "no-trailing-spaces": "error",
-            "no-whitespace-before-property": "error",
-            "space-infix-ops": "error",
-            "array-bracket-newline": ["error", "consistent"],
-            "array-bracket-spacing": ["error", "never"],
-            "array-element-newline": ["error", "consistent"],
-            "arrow-body-style": ["error", "as-needed"],
-            "arrow-parens": ["error", "as-needed"],
-            "func-call-spacing": ["error", "never"],
+            "@stylistic/array-bracket-newline": ["error", "consistent"],
+            "@stylistic/array-element-newline": ["error", "consistent"],
+            "@stylistic/func-call-spacing": ["error", "never"],
+            "@stylistic/function-paren-newline": ["error", "multiline"],
+            "@stylistic/implicit-arrow-linebreak": ["error", "beside"],
 
-            "func-style": ["error", "declaration", {
-                allowArrowFunctions: true,
-            }],
-
-            "function-paren-newline": ["error", "multiline"],
-            "implicit-arrow-linebreak": ["error", "beside"],
-
-            "indent": ["error", 4, {
-                VariableDeclarator: "first",
-                SwitchCase: 1,
-            }],
-
-            "no-extra-parens": ["error", "all", {
-                conditionalAssign: false,
-                ignoreJSX: "multi-line",
-            }],
-
-            "no-multiple-empty-lines": ["error", {
-                max: 1,
-            }],
-
-            "arrow-spacing": ["error", {
-                before: true,
-                after: true,
-            }],
-
-            "block-spacing": ["error", "always"],
-            "brace-style": ["error", "1tbs"],
-            "comma-dangle": ["error", "always-multiline"],
-            "comma-style": ["error", "last"],
-            "computed-property-spacing": ["error", "never"],
-            "curly": ["error", "all"],
-            "dot-location": ["error", "property"],
-
-            "object-curly-newline": ["error", {
+            "@stylistic/object-curly-newline": ["error", {
                 multiline: true,
                 consistent: true,
             }],
 
-            "object-curly-spacing": ["error", "never"],
-
-            "object-property-newline": ["error", {
+            "@stylistic/object-property-newline": ["error", {
                 allowAllPropertiesOnSameLine: true,
             }],
 
-            "object-shorthand": ["error", "always"],
-            "operator-assignment": ["error", "always"],
-            "padded-blocks": ["error", "never"],
-            "quote-props": ["error", "consistent-as-needed"],
-
-            "quotes": ["error", "double", {
-                avoidEscape: true,
-            }],
-
-            "semi": ["error", "always"],
-
-            "semi-spacing": ["error", {
-                before: false,
-                after: true,
-            }],
-
-            "semi-style": ["error", "last"],
-            "space-before-blocks": ["error", "always"],
-            "space-before-function-paren": ["error", "always"],
-            "space-in-parens": ["error", "never"],
-
-            "space-unary-ops": ["error", {
-                words: true,
-                nonwords: false,
-            }],
-
-            "spaced-comment": ["error", "always"],
-
-            "switch-colon-spacing": ["error", {
-                before: false,
-                after: true,
-            }],
-
-            "template-curly-spacing": ["error", "never"],
-            "template-tag-spacing": ["error", "never"],
-            "wrap-iife": ["error", "inside"],
-
-            "camelcase": ["error", {
-                properties: "always",
-            }],
+            "@stylistic/operator-linebreak": ["off"],
+            "@stylistic/semi-style": ["error", "last"],
+            "@stylistic/space-before-function-paren": ["error", "always"],
         },
     },
     {
         ignores: ["**/node_modules", "**/dist", "eslint.config.mjs", "**/difflib"],
     },
-    {
-        plugins: vitest
-    }
 );

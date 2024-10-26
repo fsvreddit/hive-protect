@@ -1,8 +1,8 @@
-import {Devvit} from "@devvit/public-api";
-import {handleCommentSubmitEvent, handleModActionEvent, handlePostSubmitEvent} from "./hiveProtect.js";
-import {appSettings} from "./settings.js";
-import {handleAppInstallOrUpgradeEvent} from "./installEventHandlers.js";
-import {cleanupDeletedAccounts} from "./cleanupTasks.js";
+import { Devvit } from "@devvit/public-api";
+import { handleCommentSubmitEvent, handleModActionEvent, handlePostSubmitEvent } from "./hiveProtect.js";
+import { appSettings } from "./settings.js";
+import { handleAppInstallOrUpgradeEvent } from "./installEventHandlers.js";
+import { cleanupDeletedAccounts } from "./cleanupTasks.js";
 
 Devvit.addSettings(appSettings);
 

@@ -1,6 +1,6 @@
 # Hive Protector
 
-A Reddit app that can be used to ban, report or remove content from users of "undesirable" subreddits from participating in another. Heavily inspired by SafestBot.
+A Reddit app that can be used to ban, report or remove content from users of "undesirable" subreddits from participating in another. Originally inspired by SafestBot.
 
 ### Detection Options
 
@@ -24,7 +24,7 @@ The application supports three main modes of handling users who have previously 
 
 If you set this to "Never" (the default), the user will never be banned a second time. "Always re-ban" is self-explanatory, and "Ban if new content since previous ban" will only take into account posts or comments in the "bad" subreddits made after their bot ban.
 
-### Other actions:
+### Other actions
 
 You can choose to make a report on the user, remove their post/comment, reply to the user or notify sub moderators silently via Modmail.
 
@@ -51,34 +51,24 @@ This app uses the Community Apps platform's Redis plugin to store very basic inf
 * The date and time that the app last checked a user, to support checking only once every two hours
 * User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
-All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 24 hours.
+All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 28 days.
 
-## Change History 
+## Change History
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
-### Changes in 1.9.3
+### 1.10
 
-- Fixed bug with {{permalink}} placeholder substituting in the new comment/post's permalink not the latest "bad" item's permalink (introduced in 1.9)
+* Add ability to choose whether posts and comments are removed as spam or as normal removes
+* Add option to purge user content rather than just the latest comment
 
-### Changes in 1.9.2
+### 1.9.3
 
-- Fixed a bug that would prevent users with matches by subreddit only from being picked up
+* Fixed bug with {{permalink}} placeholder substituting in the new comment/post's permalink not the latest "bad" item's permalink (introduced in 1.9)
 
-### Changes in 1.9
+### 1.9.2
 
-- You can now specify that at least N subreddits match
-- App now prevents ban messages/notes that are too long
-- Anti block checker - alert if a user may be blocking this app.
-- Bug fixes
-
-### Changes in 1.8.2
-
-- App can now check a user's social links (note: I cannot yet check users' bio text)
-- Reporting now happens before removal, which means more context is available to mods
-- Add option to notify by Modmail
-- Add option to skip remove/report/modmail options if user was previously unbanned
-- Add user flair whitelist
+* Fixed a bug that would prevent users with matches by subreddit only from being picked up
 
 ## Feedback
 

@@ -1,13 +1,13 @@
-import {ScheduledJobEvent, TriggerContext, User, ZMember} from "@devvit/public-api";
-import {addDays, addMinutes, addSeconds} from "date-fns";
-import {APPROVALS_KEY} from "./hiveProtect.js";
+import { TriggerContext, User, ZMember } from "@devvit/public-api";
+import { addDays, addMinutes, addSeconds } from "date-fns";
+import { APPROVALS_KEY } from "./hiveProtect.js";
 import _ from "lodash";
 
 export const CLEANUP_LOG_KEY = "cleanupStore";
 const DAYS_BETWEEN_CHECKS = 28;
 
 export async function setCleanupForUser (username: string, context: TriggerContext) {
-    await context.redis.zAdd(CLEANUP_LOG_KEY, {member: username, score: addDays(new Date(), DAYS_BETWEEN_CHECKS).getTime()});
+    await context.redis.zAdd(CLEANUP_LOG_KEY, { member: username, score: addDays(new Date(), DAYS_BETWEEN_CHECKS).getTime() });
 }
 
 async function userActive (username: string, context: TriggerContext): Promise<boolean> {
@@ -18,21 +18,17 @@ async function userActive (username: string, context: TriggerContext): Promise<b
         //
     }
 
-    if (user) {
-        return true;
-    } else {
-        return false;
-    }
+    return user !== undefined;
 }
 
 interface UserActive {
-    username: string,
-    isActive: boolean,
+    username: string;
+    isActive: boolean;
 }
 
-export async function cleanupDeletedAccounts (_: ScheduledJobEvent, context: TriggerContext) {
+export async function cleanupDeletedAccounts (_: unknown, context: TriggerContext) {
     console.log("Cleanup: Starting cleanup job");
-    const items = await context.redis.zRange(CLEANUP_LOG_KEY, 0, new Date().getTime(), {by: "score"});
+    const items = await context.redis.zRange(CLEANUP_LOG_KEY, 0, new Date().getTime(), { by: "score" });
     if (items.length === 0) {
         // No user accounts need to be checked.
         console.log("Cleanup: No users are due a check.");
@@ -56,7 +52,7 @@ export async function cleanupDeletedAccounts (_: ScheduledJobEvent, context: Tri
 
     for (const username of usersToCheck) {
         const isActive = await userActive(username, context);
-        userStatuses.push(({username, isActive} as UserActive));
+        userStatuses.push(({ username, isActive } as UserActive));
     }
 
     const activeUsers = userStatuses.filter(user => user.isActive).map(user => user.username);
@@ -65,7 +61,7 @@ export async function cleanupDeletedAccounts (_: ScheduledJobEvent, context: Tri
     // For active users, set their next check date to be one day from now.
     if (activeUsers.length > 0) {
         console.log(`Cleanup: ${activeUsers.length} users still active out of ${userStatuses.length}. Resetting next check time.`);
-        await context.redis.zAdd(CLEANUP_LOG_KEY, ...activeUsers.map(user => ({member: user, score: addDays(new Date(), DAYS_BETWEEN_CHECKS).getTime()} as ZMember)));
+        await context.redis.zAdd(CLEANUP_LOG_KEY, ...activeUsers.map(user => ({ member: user, score: addDays(new Date(), DAYS_BETWEEN_CHECKS).getTime() } as ZMember)));
     }
 
     // For deleted users, remove them from both the cleanup log and remove previous records of bans and approvals.
@@ -89,11 +85,10 @@ export async function cleanupDeletedAccounts (_: ScheduledJobEvent, context: Tri
  * Grab as many users previously banned by this user as we can, and add to cleanup list.
  */
 export async function addCleanupEntriesForBannedAccounts (context: TriggerContext) {
-    const subreddit = await context.reddit.getCurrentSubreddit();
-    const thisApp = await context.reddit.getAppUser();
+    const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
     const modLog = await context.reddit.getModerationLog({
-        subredditName: subreddit.name,
-        moderatorUsernames: [thisApp.username],
+        subredditName,
+        moderatorUsernames: [context.appName],
         type: "banuser",
         limit: 1000,
     }).all();
@@ -104,7 +99,7 @@ export async function addCleanupEntriesForBannedAccounts (context: TriggerContex
     }
 
     // Store users with random times throughout the day to spread out workload.
-    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => ({member: user, score: addMinutes(new Date(), Math.random() * 60 * 24 * 2).getTime()} as ZMember)));
+    await context.redis.zAdd(CLEANUP_LOG_KEY, ...userList.map(user => ({ member: user, score: addMinutes(new Date(), Math.random() * 60 * 24 * 2).getTime() } as ZMember)));
     console.log(`Cleanup: ${userList.length} previously banned users added to the cleanup store`);
 }
 
@@ -123,7 +118,7 @@ export async function rescheduleCleanupEntries (context: TriggerContext) {
     }
 
     // Store users with random times throughout the day to spread out workload.
-    await context.redis.zAdd(CLEANUP_LOG_KEY, ...currentCleanupEntries.map(user => ({member: user.member, score: addMinutes(new Date(), Math.random() * 60 * 24 * DAYS_BETWEEN_CHECKS).getTime()} as ZMember)));
+    await context.redis.zAdd(CLEANUP_LOG_KEY, ...currentCleanupEntries.map(user => ({ member: user.member, score: addMinutes(new Date(), Math.random() * 60 * 24 * DAYS_BETWEEN_CHECKS).getTime() } as ZMember)));
     console.log(`Cleanup: ${currentCleanupEntries.length} Cleanup users rescheduled.`);
 
     await context.redis.set(redisKey, JSON.stringify(DAYS_BETWEEN_CHECKS));
