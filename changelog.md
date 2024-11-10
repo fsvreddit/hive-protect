@@ -1,6 +1,6 @@
 # Change log for Hive Protector
 
-### 1.10.1
+### 1.10.2
 
 * Prevent duplicate ban messages that can be sent to users in some situations
 

@@ -55,7 +55,7 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
-### 1.10.1
+### 1.10.2
 
 * Prevent duplicate ban messages that can be sent to users in some situations
 
