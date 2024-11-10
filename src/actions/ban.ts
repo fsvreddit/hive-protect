@@ -2,8 +2,16 @@ import { TriggerContext } from "@devvit/public-api";
 import { ProblematicSubsResult } from "../hiveProtect.js";
 import { AppSetting } from "../settings.js";
 import { setCleanupForUser } from "../cleanupTasks.js";
+import { isBanned } from "../utility.js";
 
 export async function banUser (context: TriggerContext, subredditName: string, userName: string, problematicItemsResult: ProblematicSubsResult): Promise<void> {
+    // Check to see if user is banned first before acting.
+    const userIsBanned = await isBanned(context, subredditName, userName);
+    if (userIsBanned) {
+        console.log(`Skipping ban for ${userName}, user is already banned.`);
+        return;
+    }
+
     const settings = await context.settings.getAll();
 
     let banMessage = settings[AppSetting.BanMessage] as string | undefined;
