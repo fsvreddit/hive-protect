@@ -1,5 +1,9 @@
 # Change log for Hive Protector
 
+### 1.10.1
+
+* Prevent duplicate ban messages that can be sent to users in some situations
+
 ### 1.10
 
 * Add ability to choose whether posts and comments are removed as spam or as normal removes

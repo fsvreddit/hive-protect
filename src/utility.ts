@@ -16,6 +16,15 @@ export async function isContributor (context: TriggerContext, subredditName: str
     return filteredContributorList.length > 0;
 }
 
+export async function isBanned (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
+    const bannedUsers = await context.reddit.getBannedUsers({
+        subredditName,
+        username,
+    }).all();
+
+    return bannedUsers.length > 0;
+}
+
 export function replaceAll (input: string, pattern: string, replacement: string): string {
     return input.split(pattern).join(replacement);
 }

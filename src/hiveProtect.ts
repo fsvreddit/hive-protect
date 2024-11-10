@@ -56,6 +56,14 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         return;
     }
 
+    const redisKey = `alreadyChecked~${targetId}`;
+    const alreadyChecked = await context.redis.get(redisKey);
+    if (alreadyChecked) {
+        console.log(`Duplicate event fired for ${targetId}`);
+        return;
+    }
+    await context.redis.set(redisKey, "true", { expiration: addHours(new Date(), 6) });
+
     const settings = await context.settings.getAll();
 
     // Now check if the submission is of a type configured to be checked.

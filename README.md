@@ -55,6 +55,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### 1.10.1
+
+* Prevent duplicate ban messages that can be sent to users in some situations
+
 ### 1.10
 
 * Add ability to choose whether posts and comments are removed as spam or as normal removes
@@ -63,10 +67,6 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 ### 1.9.3
 
 * Fixed bug with {{permalink}} placeholder substituting in the new comment/post's permalink not the latest "bad" item's permalink (introduced in 1.9)
-
-### 1.9.2
-
-* Fixed a bug that would prevent users with matches by subreddit only from being picked up
 
 ## Feedback
 
