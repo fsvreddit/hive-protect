@@ -1,7 +1,7 @@
 import { TriggerContext, User, ZMember } from "@devvit/public-api";
 import { addDays, addMinutes, addSeconds } from "date-fns";
 import { APPROVALS_KEY } from "./hiveProtect.js";
-import _ from "lodash";
+import { compact, uniq } from "lodash";
 
 export const CLEANUP_LOG_KEY = "cleanupStore";
 const DAYS_BETWEEN_CHECKS = 28;
@@ -93,7 +93,7 @@ export async function addCleanupEntriesForBannedAccounts (context: TriggerContex
         limit: 1000,
     }).all();
 
-    const userList = _.uniq(_.compact(modLog.filter(entry => entry.target).map(entry => entry.target?.author))).filter(username => username !== "[deleted]");
+    const userList = uniq(compact(modLog.filter(entry => entry.target).map(entry => entry.target?.author))).filter(username => username !== "[deleted]");
     if (userList.length === 0) {
         return;
     }

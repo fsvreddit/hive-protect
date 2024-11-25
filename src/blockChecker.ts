@@ -1,7 +1,7 @@
 import { Comment, Post, TriggerContext } from "@devvit/public-api";
 import { isModerator } from "./utility.js";
 import { addDays, subMonths } from "date-fns";
-import _ from "lodash";
+import { uniq } from "lodash";
 
 async function appUserIsModOfSub (subredditName: string, context: TriggerContext): Promise<boolean> {
     const redisKey = `appUserIsModOf~${subredditName}`;
@@ -23,7 +23,7 @@ export async function isUserBlockingAppAccount (userHistory: (Post | Comment)[],
         return false;
     }
 
-    const subreddits = _.uniq(userHistory.filter(x => x.subredditId !== context.subredditId).map(x => x.subredditName));
+    const subreddits = uniq(userHistory.filter(x => x.subredditId !== context.subredditId).map(x => x.subredditName));
     if (subreddits.length === 0) {
         return false;
     }

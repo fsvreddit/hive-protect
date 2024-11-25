@@ -6,13 +6,9 @@ import { isModerator, isContributor, domainFromUrlString, trimLeadingWWW, getPos
 import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
-import { reportContent } from "./actions/report.js";
-import { removeContent } from "./actions/remove.js";
-import { replyToContent } from "./actions/reply.js";
-import { sendModmail } from "./actions/modmail.js";
-import { banUser } from "./actions/ban.js";
-import _ from "lodash";
+import { uniq } from "lodash";
 import pluralize from "pluralize";
+import { actionUser } from "./actionUser.js";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -65,7 +61,6 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     await context.redis.set(redisKey, "true", { expiration: addHours(new Date(), 6) });
 
     const settings = await context.settings.getAll();
-
     // Now check if the submission is of a type configured to be checked.
     // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
     // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
@@ -75,55 +70,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         return;
     }
 
-    let user: User | undefined;
-    try {
-        user = await context.reddit.getUserByUsername(userName);
-    } catch {
-        //
-    }
-
-    if (!user) {
-        console.log("User object is not defined. This should be impossible if we checked user.");
-        return;
-    }
-
-    if (user.isAdmin) {
-        console.log(`${userName} is an admin! No action will be taken.`);
-        return;
-    }
-
-    const userFlairWhitelist = settings[AppSetting.FlairWhitelist] as string | undefined;
-    if (userFlairWhitelist) {
-        const whitelistedFlairs = userFlairWhitelist.split(",").map(x => x.toLowerCase().trim());
-        const userFlair = await user.getUserFlairBySubreddit(subredditName);
-        if (userFlair?.flairText && whitelistedFlairs.includes(userFlair.flairText.toLowerCase())) {
-            console.log(`User's flair (${userFlair.flairText} is whitelisted. No action will be taken,`);
-            return;
-        }
-    }
-
-    const banEnabled = settings[AppSetting.BanEnabled] as boolean | undefined ?? true;
-
-    const target = await getPostOrCommentById(targetId, context);
-
-    const actions: Promise<void>[] = [];
-
-    if (banEnabled && problematicItemsResult.userBannable) {
-        actions.push(banUser(context, subredditName, userName, problematicItemsResult));
-    }
-
-    if (!settings[AppSetting.ApplyBanBehavioursToOtherActions] && !problematicItemsResult.userBannable) {
-        console.log("Other action options are turned on, but user was previously unbanned. Skipping");
-        return;
-    }
-
-    // Perform actions!
-    actions.push(
-        reportContent(target, problematicItemsResult, settings, context),
-        removeContent(target, settings, context),
-        replyToContent(target, problematicItemsResult, settings, context),
-        sendModmail(target, problematicItemsResult, settings, context),
-    );
+    await actionUser(userName, targetId, problematicItemsResult, context);
 }
 
 function getLatestResultKey (username: string) {
@@ -178,7 +125,7 @@ export function isOverThreshold (items: BadSubItem[], combinedThreshold: number,
         }
 
         const itemsViaDomainCount = items.filter(x => x.foundViaDomain).length;
-        const distinctSubCount = _.uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
+        const distinctSubCount = uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
 
         return itemsViaDomainCount >= threshold || (items.length >= threshold && distinctSubCount >= minSubCount);
     }
@@ -378,8 +325,8 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     let result: ProblematicSubsResult;
     if (failsChecks) {
         result = {
-            badSubs: _.uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
-            badDomains: _.uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
+            badSubs: uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
+            badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
             itemPermalink: badSubItems[0]?.item.permalink,
             userBannable,
             userBlocking: false,
