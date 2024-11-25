@@ -1,5 +1,5 @@
 import { TriggerContext, User } from "@devvit/public-api";
-import { ProblematicSubsResult } from "./hiveProtect.js";
+import { ProblematicSubsResult } from "./getProblematicItems.js";
 import { getPostOrCommentById } from "./utility.js";
 import { reportContent } from "./actions/report.js";
 import { removeContent } from "./actions/remove.js";
