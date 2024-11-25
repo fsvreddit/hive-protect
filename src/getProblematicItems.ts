@@ -102,7 +102,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const lastResult = await lastCheckResult(context, userName);
 
     if (lastResult && !ignoreCachedResults) {
-        console.log(`Most recent check on ${userName} was too recent.`);
         return lastResult;
     }
 
@@ -235,9 +234,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const badCommentCount = badSubItems.filter(item => item.item instanceof Comment).length;
     const badDomainCount = matchingSocialLinksDomains.length;
 
-    if (badPostCount === 0 && badCommentCount === 0 && domainList.length === 0) {
-        console.log(`Found no items of concern for ${userName}.`);
-    } else {
+    if (badPostCount || badCommentCount || badDomainCount) {
         console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)}, ${badCommentCount} ${pluralize("comment", badCommentCount)} and ${badDomainCount} ${pluralize("domain", badDomainCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
     }
 
