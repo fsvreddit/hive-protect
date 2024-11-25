@@ -160,7 +160,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             userContent = await context.reddit.getCommentsByUser(userOverviewOptions).all();
         }
     } catch {
-        console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
         return emptyResult;
     }
 
