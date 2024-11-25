@@ -1,5 +1,6 @@
 import { Comment, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
-import { APPROVALS_KEY, ProblematicSubsResult } from "../hiveProtect.js";
+import { APPROVALS_KEY } from "../hiveProtect.js";
+import { ProblematicSubsResult } from "../getProblematicItems.js";
 import { replaceAll } from "../utility.js";
 import { addDays } from "date-fns";
 import { AppSetting } from "../settings.js";

@@ -11,7 +11,7 @@ import { getLatestResultKey, problematicItemsFound } from "./getProblematicItems
 export const APPROVALS_KEY = "ItemApprovalCount";
 
 export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.post || !event.subreddit || event.author.name === context.appName) {
+    if (!event.author?.name || !event.post || !event.subreddit) {
         console.log("Event is not in the right state.");
         return;
     }
@@ -20,7 +20,7 @@ export async function handlePostSubmitEvent (event: PostSubmit, context: Trigger
 }
 
 export async function handleCommentSubmitEvent (event: CommentSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.comment || !event.subreddit || event.author.name === context.appName) {
+    if (!event.author?.name || !event.comment || !event.subreddit) {
         console.log("Event is not in the right state.");
         return;
     }
@@ -29,7 +29,7 @@ export async function handleCommentSubmitEvent (event: CommentSubmit, context: T
 }
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, subredditName: string, userName: string, context: TriggerContext) {
-    if (userName === "AutoModerator" || userName === `${subredditName}-ModTeam`) {
+    if (userName === "AutoModerator" || userName === `${subredditName}-ModTeam` || userName === context.appName) {
         // Automod could legitimately have activity in "bad" subreddits, but we never want to act on it.
         console.log(`${userName} is exempt from all checks.`);
         return false;

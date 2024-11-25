@@ -1,7 +1,7 @@
 import { Comment, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
 import { AppSetting } from "../settings.js";
 import { replaceAll } from "../utility.js";
-import { ProblematicSubsResult } from "../hiveProtect.js";
+import { ProblematicSubsResult } from "../getProblematicItems.js";
 import { isLinkId } from "@devvit/shared-types/tid.js";
 
 export async function replyToContent (target: Post | Comment, problematicItemsResult: ProblematicSubsResult, settings: SettingsValues, context: TriggerContext) {

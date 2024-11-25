@@ -14,6 +14,7 @@ export enum AppSetting {
     ExemptApprovedUser = "exemptapproveduser",
     UserWhitelist = "userWhitelist",
     FlairWhitelist = "flairWhitelist",
+    SecondCheckInterval = "secondCheckInterval",
     BanEnabled = "banenabled",
     BehaviourIfPrevBan = "behaviourifprevban",
     ApplyBanBehavioursToOtherActions = "banBehaviourForAllActions",
@@ -182,6 +183,18 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.FlairWhitelist,
                 label: "Ignore users with these flairs",
                 helpText: "A comma-separated list of user flairs that exempt users from checks. Case insensitive.",
+            },
+            {
+                type: "number",
+                name: AppSetting.SecondCheckInterval,
+                label: "Perform second check on user after this many hours",
+                helpText: "Useful if you have issues with users adding social links or other problematic content after posting or commenting. Set to 0 to disable. Only one delayed check will be performed per 28 days.",
+                defaultValue: 0,
+                onValidate: ({ value }) => {
+                    if (value && value < 6) {
+                        return "If a value other than zero is provided, it must be 6 hours or greater.";
+                    }
+                },
             },
         ],
     },

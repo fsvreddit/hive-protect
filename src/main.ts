@@ -3,6 +3,8 @@ import { handleCommentSubmitEvent, handleModActionEvent, handlePostSubmitEvent }
 import { appSettings } from "./settings.js";
 import { handleAppInstallOrUpgradeEvent } from "./installEventHandlers.js";
 import { cleanupDeletedAccounts } from "./cleanupTasks.js";
+import { CLEANUP_JOB, SECOND_CHECK_JOB } from "./constants.js";
+import { handleSecondCheckJob } from "./secondChecks.js";
 
 Devvit.addSettings(appSettings);
 
@@ -27,8 +29,13 @@ Devvit.addTrigger({
 });
 
 Devvit.addSchedulerJob({
-    name: "cleanupDeletedAccounts",
+    name: CLEANUP_JOB,
     onRun: cleanupDeletedAccounts,
+});
+
+Devvit.addSchedulerJob({
+    name: SECOND_CHECK_JOB,
+    onRun: handleSecondCheckJob,
 });
 
 Devvit.configure({

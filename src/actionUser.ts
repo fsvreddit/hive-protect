@@ -1,4 +1,4 @@
-import { TriggerContext, User } from "@devvit/public-api";
+import { Post, Comment, TriggerContext, User } from "@devvit/public-api";
 import { ProblematicSubsResult } from "./getProblematicItems.js";
 import { getPostOrCommentById } from "./utility.js";
 import { reportContent } from "./actions/report.js";
@@ -8,7 +8,7 @@ import { replyToContent } from "./actions/reply.js";
 import { banUser } from "./actions/ban.js";
 import { AppSetting } from "./settings.js";
 
-export async function actionUser (userName: string, targetId: string, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
+export async function actionUser (userName: string, targetId: string | undefined, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
 
     let user: User | undefined;
@@ -19,7 +19,7 @@ export async function actionUser (userName: string, targetId: string, problemati
     }
 
     if (!user) {
-        console.log("User object is not defined. This should be impossible if we checked user.");
+        console.log("User object is not defined. This could indicate a shadowbanned user on second check.");
         return;
     }
 
@@ -42,8 +42,6 @@ export async function actionUser (userName: string, targetId: string, problemati
 
     const banEnabled = settings[AppSetting.BanEnabled] as boolean | undefined ?? true;
 
-    const target = await getPostOrCommentById(targetId, context);
-
     const actions: Promise<void>[] = [];
 
     if (banEnabled && problematicItemsResult.userBannable) {
@@ -52,6 +50,23 @@ export async function actionUser (userName: string, targetId: string, problemati
 
     if (!settings[AppSetting.ApplyBanBehavioursToOtherActions] && !problematicItemsResult.userBannable) {
         console.log("Other action options are turned on, but user was previously unbanned. Skipping");
+        return;
+    }
+
+    let target: Post | Comment | undefined;
+    if (targetId) {
+        target = await getPostOrCommentById(targetId, context);
+    } else {
+        // Get the most recent user entry from the subreddit.
+        const userContent = await context.reddit.getCommentsAndPostsByUser({
+            username: userName,
+            sort: "new",
+        }).all();
+
+        target = userContent.find(item => item.subredditName === context.subredditName);
+    }
+
+    if (!target) {
         return;
     }
 

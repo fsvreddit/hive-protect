@@ -2,6 +2,8 @@ import { TriggerContext } from "@devvit/public-api";
 import { AppInstall, AppUpgrade } from "@devvit/protos";
 import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
 import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
+import { CLEANUP_JOB, SECOND_CHECK_JOB, SECOND_CHECK_JOB_CRON } from "./constants.js";
+import { queueSecondCheckAdhocJob } from "./secondChecks.js";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
     // Clean up old redis key, no longer used.
@@ -17,9 +19,16 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     console.log(`Running cleanup job at ${minute} past every 6th hour starting at ${hour}.`);
 
     await context.scheduler.runJob({
-        name: "cleanupDeletedAccounts",
+        name: CLEANUP_JOB,
         cron: `${minute} ${hour}/6 * * *`,
     });
+
+    await context.scheduler.runJob({
+        name: SECOND_CHECK_JOB,
+        cron: SECOND_CHECK_JOB_CRON,
+    });
+
+    await queueSecondCheckAdhocJob(context);
 
     const cleanupPopulated = await context.redis.get("CleanupPopulated");
     if (!cleanupPopulated) {

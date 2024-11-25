@@ -46,7 +46,7 @@ The app will never ban a user based on content in the subreddit the app is insta
 
 This app uses the Community Apps platform's Redis plugin to store very basic information about users checked.
 
-* The date and time that the app last checked a user, to support checking only once every two hours
+* The date and time that the app last checked a user, to support checking only once every 12 hours
 * User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
 All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 28 days.
@@ -54,6 +54,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 ## Change History
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
+
+### Next
+
+* Add ability to perform a second check on a user a period of time after the initial one, to protect against users who may look inocuous at first but may do things like add OnlyFans links after they initially comment. If this option is chosen, users will only get a single second check every 28 days.
 
 ### 1.10.2
 

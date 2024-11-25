@@ -5,6 +5,9 @@ import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from 
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
 import { addHours, subDays } from "date-fns";
+import { queueSecondCheck } from "./secondChecks.js";
+
+export const CACHE_DURATION_HOURS = 12;
 
 export function getLatestResultKey (username: string) {
     return `participation-lastcheck-${username}`;
@@ -281,14 +284,19 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         } else {
             result = emptyResult;
         }
+
+        const secondCheckInterval = settings[AppSetting.SecondCheckInterval] as number | undefined;
+        if (secondCheckInterval) {
+            await queueSecondCheck(userName, secondCheckInterval, context);
+        }
     }
 
-    // Store record of this result. Cache for 1 hour if a positive result, or 6 hours if negative.
+    // Store record of this result. Cache for 1 hour if a positive result, or 12 hours if negative.
     let cacheExpiryTime: Date;
     if (result.badSubs.length > 0 || result.badDomains.length > 0) {
         cacheExpiryTime = addHours(new Date(), 1);
     } else {
-        cacheExpiryTime = addHours(new Date(), 6);
+        cacheExpiryTime = addHours(new Date(), CACHE_DURATION_HOURS);
     }
     await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), { expiration: cacheExpiryTime });
 
