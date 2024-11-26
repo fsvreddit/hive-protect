@@ -8,7 +8,7 @@ import { actionUser } from "./actionUser.js";
 const SECOND_CHECK_QUEUE = "secondCheckQueue";
 
 export async function queueSecondCheck (username: string, interval: number, context: TriggerContext) {
-    const secondCheckedKey = `secondchecked~username`;
+    const secondCheckedKey = `secondchecked~${username}`;
     const secondChecked = await context.redis.get(secondCheckedKey);
     if (secondChecked) {
         return;
@@ -29,7 +29,7 @@ export async function dequeueSecondCheck (username: string, context: TriggerCont
 }
 
 export async function handleSecondCheckJob (_: unknown, context: JobContext) {
-    const entries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, new Date().getTime(), { by: "score" });
+    const entries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, new Date().getTime(), { by: "rank" });
 
     if (entries.length > 0) {
         await context.redis.zRem(SECOND_CHECK_QUEUE, entries.map(item => item.member));
@@ -53,6 +53,7 @@ export async function handleSecondCheckJob (_: unknown, context: JobContext) {
 export async function queueSecondCheckAdhocJob (context: TriggerContext) {
     const nextEntries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, 0, { by: "rank" });
     if (nextEntries.length === 0) {
+        console.log("No adhoc job needed, nothing in queue");
         return;
     }
 
@@ -60,7 +61,7 @@ export async function queueSecondCheckAdhocJob (context: TriggerContext) {
     const nextScheduledTime = parseExpression(SECOND_CHECK_JOB_CRON).next().toDate();
 
     if (differenceInMinutes(nextScheduledTime, nextRunTime) < 2) {
-        // Next check is too soon.
+        console.log(`No adhoc job needed, next scheduled check is ${nextScheduledTime.toUTCString()}`);
         return;
     }
 
@@ -68,4 +69,6 @@ export async function queueSecondCheckAdhocJob (context: TriggerContext) {
         name: SECOND_CHECK_JOB,
         runAt: nextRunTime,
     });
+
+    console.log(`Next ad-hoc check: ${nextRunTime.toUTCString()}`);
 }
