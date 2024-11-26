@@ -233,7 +233,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const badCommentCount = badSubItems.filter(item => item.item instanceof Comment).length;
     const badDomainCount = matchingSocialLinksDomains.length;
 
-    if (badPostCount || badCommentCount || badDomainCount) {
+    if (badPostCount === 0 && badCommentCount === 0 && badDomainCount === 0) {
+        console.log(`Found no items of concern for ${userName}.`);
+    } else {
         console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)}, ${badCommentCount} ${pluralize("comment", badCommentCount)} and ${badDomainCount} ${pluralize("domain", badDomainCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
     }
 
