@@ -1,12 +1,11 @@
 import { TriggerContext } from "@devvit/public-api";
-import { CommentSubmit, PostSubmit, ModAction } from "@devvit/protos";
+import { CommentSubmit, PostSubmit } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 import { addDays, addHours } from "date-fns";
 import { getPostOrCommentById } from "./utility.js";
 import { AppSetting, ContentTypeToActOn } from "./settings.js";
-import { setCleanupForUser } from "./cleanupTasks.js";
 import { actionUser } from "./actionUser.js";
-import { getLatestResultKey, problematicItemsFound } from "./getProblematicItems.js";
+import { problematicItemsFound } from "./getProblematicItems.js";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -69,37 +68,4 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
     }
 
     await actionUser(userName, targetId, problematicItemsResult, context);
-}
-
-export async function handleModActionEvent (event: ModAction, context: TriggerContext) {
-    if (event.targetUser && (event.action === "unbanuser" || event.action === "banuser")) {
-        console.log(`Detected a ${event.action} event for ${event.targetUser.name}. Removing cached check results that may exist.`);
-        // Clear down previous check after unban
-        await context.redis.del(getLatestResultKey(event.targetUser.name));
-    }
-
-    if (event.targetUser && (event.action === "approvecomment" || event.action === "approvelink")) {
-        let targetId: string | undefined;
-        if (event.action === "approvecomment") {
-            targetId = event.targetComment?.id;
-        } else {
-            targetId = event.targetPost?.id;
-        }
-
-        if (!targetId) {
-            // This should be impossible, but handle anyway.
-            return;
-        }
-
-        // Check to see if post/comment was previously flagged by this app.
-        const itemReported = await context.redis.get(`itemreported~${targetId}`);
-        if (!itemReported) {
-            return;
-        }
-
-        // Increment approvals counter.
-        const newApprovalCount = await context.redis.zIncrBy(APPROVALS_KEY, event.targetUser.name, 1);
-        await setCleanupForUser(event.targetUser.name, context);
-        console.log(`Approved a reported comment by ${event.targetUser.name}. Approval counter is now ${newApprovalCount}.`);
-    }
 }

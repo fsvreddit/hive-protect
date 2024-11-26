@@ -24,24 +24,27 @@ export async function queueSecondCheck (username: string, interval: number, cont
     await context.redis.set(secondCheckedKey, new Date().getTime().toString(), { expiration: addDays(new Date(), 28) });
 }
 
+export async function dequeueSecondCheck (username: string, context: TriggerContext) {
+    await context.redis.zRem(SECOND_CHECK_QUEUE, [username]);
+}
+
 export async function handleSecondCheckJob (_: unknown, context: JobContext) {
     const entries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, new Date().getTime(), { by: "score" });
-    if (entries.length === 0) {
-        return;
-    }
 
-    await context.redis.zRem(SECOND_CHECK_QUEUE, entries.map(item => item.member));
+    if (entries.length > 0) {
+        await context.redis.zRem(SECOND_CHECK_QUEUE, entries.map(item => item.member));
 
-    const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
+        const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
 
-    for (const username of entries.map(item => item.member)) {
-        console.log(`Second check for ${username}`);
-        const problematicItemsResult = await problematicItemsFound(context, subredditName, username, true);
-        if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
-            continue;
+        for (const username of entries.map(item => item.member)) {
+            console.log(`Second check for ${username}`);
+            const problematicItemsResult = await problematicItemsFound(context, subredditName, username, true);
+            if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
+                continue;
+            }
+
+            await actionUser(username, undefined, problematicItemsResult, context);
         }
-
-        await actionUser(username, undefined, problematicItemsResult, context);
     }
 
     await queueSecondCheckAdhocJob(context);

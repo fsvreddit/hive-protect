@@ -1,6 +1,6 @@
 import { TriggerContext, User, ZMember } from "@devvit/public-api";
 import { addDays, addMinutes, addSeconds } from "date-fns";
-import { APPROVALS_KEY } from "./hiveProtect.js";
+import { APPROVALS_KEY } from "./handleContentCreation.js";
 import { compact, uniq } from "lodash";
 
 export const CLEANUP_LOG_KEY = "cleanupStore";
