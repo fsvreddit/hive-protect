@@ -1,5 +1,5 @@
 import { JobContext, TriggerContext } from "@devvit/public-api";
-import { addDays, addHours, addMinutes, differenceInMinutes } from "date-fns";
+import { addDays, addHours, addSeconds, differenceInMinutes } from "date-fns";
 import { parseExpression } from "cron-parser";
 import { SECOND_CHECK_JOB, SECOND_CHECK_JOB_CRON } from "./constants.js";
 import { problematicItemsFound } from "./getProblematicItems.js";
@@ -32,11 +32,12 @@ export async function handleSecondCheckJob (_: unknown, context: JobContext) {
     const entries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, new Date().getTime(), { by: "rank" });
 
     if (entries.length > 0) {
-        await context.redis.zRem(SECOND_CHECK_QUEUE, entries.map(item => item.member));
+        const usersToProcess = entries.slice(0, 5).map(item => item.member);
+        await context.redis.zRem(SECOND_CHECK_QUEUE, usersToProcess);
 
         const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
 
-        for (const username of entries.map(item => item.member)) {
+        for (const username of usersToProcess) {
             console.log(`Second check for ${username}`);
             const problematicItemsResult = await problematicItemsFound(context, subredditName, username, true);
             if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
@@ -57,11 +58,12 @@ export async function queueSecondCheckAdhocJob (context: TriggerContext) {
         return;
     }
 
-    const nextRunTime = addMinutes(new Date(nextEntries[0].score), 1);
+    const nextRunTime = addSeconds(new Date(nextEntries[0].score), 1);
     const nextScheduledTime = parseExpression(SECOND_CHECK_JOB_CRON).next().toDate();
 
     if (differenceInMinutes(nextScheduledTime, nextRunTime) < 2) {
         console.log(`No adhoc job needed, next scheduled check is ${nextScheduledTime.toUTCString()}`);
+        console.log(`Next ad-hoc: ${nextRunTime.toUTCString()}`);
         return;
     }
 
