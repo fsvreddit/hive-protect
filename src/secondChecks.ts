@@ -31,21 +31,26 @@ export async function dequeueSecondCheck (username: string, context: TriggerCont
 export async function handleSecondCheckJob (_: unknown, context: JobContext) {
     const entries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, new Date().getTime(), { by: "rank" });
 
-    if (entries.length > 0) {
-        const usersToProcess = entries.slice(0, 5).map(item => item.member);
-        await context.redis.zRem(SECOND_CHECK_QUEUE, usersToProcess);
+    try {
+        if (entries.length > 0) {
+            const usersToProcess = entries.slice(0, 5).map(item => item.member);
+            await context.redis.zRem(SECOND_CHECK_QUEUE, usersToProcess);
 
-        const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
+            const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
 
-        for (const username of usersToProcess) {
-            console.log(`Second check for ${username}`);
-            const problematicItemsResult = await problematicItemsFound(context, subredditName, username, true);
-            if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
-                continue;
+            for (const username of usersToProcess) {
+                console.log(`Second check for ${username}`);
+                const problematicItemsResult = await problematicItemsFound(context, subredditName, username, true);
+                if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
+                    continue;
+                }
+
+                await actionUser(username, undefined, problematicItemsResult, context);
             }
-
-            await actionUser(username, undefined, problematicItemsResult, context);
         }
+    } catch (error) {
+        console.log("An error occurred during second checks");
+        console.log(error);
     }
 
     await queueSecondCheckAdhocJob(context);
@@ -69,7 +74,7 @@ export async function queueSecondCheckAdhocJob (context: TriggerContext) {
 
     await context.scheduler.runJob({
         name: SECOND_CHECK_JOB,
-        runAt: nextRunTime,
+        runAt: nextRunTime < new Date() ? new Date() : nextRunTime,
     });
 
     console.log(`Next ad-hoc check: ${nextRunTime.toUTCString()}`);
