@@ -30,7 +30,7 @@ export async function dequeueSecondCheck (username: string, context: TriggerCont
 
 export async function handleSecondCheckJob (_: unknown, context: JobContext) {
     const entries = await context.redis.zRange(SECOND_CHECK_QUEUE, 0, new Date().getTime(), { by: "rank" });
-
+    const secondCheckKey = "secondCheckCount";
     try {
         if (entries.length > 0) {
             const usersToProcess = entries.slice(0, 5).map(item => item.member);
@@ -46,6 +46,7 @@ export async function handleSecondCheckJob (_: unknown, context: JobContext) {
                 }
 
                 await actionUser(username, undefined, problematicItemsResult, context);
+                await context.redis.incrBy(secondCheckKey, 1);
             }
         }
     } catch (error) {
@@ -54,6 +55,8 @@ export async function handleSecondCheckJob (_: unknown, context: JobContext) {
     }
 
     await queueSecondCheckAdhocJob(context);
+    const secondCheckCount = await context.redis.get(secondCheckKey);
+    console.log("Second check action count: ", secondCheckCount);
 }
 
 export async function queueSecondCheckAdhocJob (context: TriggerContext) {
