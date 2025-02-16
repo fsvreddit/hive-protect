@@ -31,6 +31,9 @@ export enum AppSetting {
     ReportTemplate = "reporttemplate",
     ReportNumber = "reportnumber",
     ModmailEnabled = "modmailEnabled",
+    ModNoteEnabled = "modNoteEnabled",
+    ModNoteType = "modNoteType",
+    ModNoteTemplate = "modNoteTemplate",
     AntiBlockCheckerEnable = "antiBlockCheckerEnabled",
 }
 
@@ -350,6 +353,37 @@ export const appSettings: SettingsFormField[] = [
                         name: AppSetting.ModmailEnabled,
                         label: "Send modmail if user fails checks",
                         defaultValue: false,
+                    },
+                ],
+            },
+            {
+                type: "group",
+                label: "Mod Note Options",
+                fields: [
+                    {
+                        type: "boolean",
+                        name: AppSetting.ModNoteEnabled,
+                        label: "Add a mod note if user fails checks",
+                        defaultValue: false,
+                    },
+                    {
+                        type: "select",
+                        name: AppSetting.ModNoteType,
+                        label: "Type of mod note to add",
+                        options: [
+                            { label: "Native mod note", value: "native" },
+                            { label: "Toolbox usernote", value: "toolbox" },
+                            { label: "Both", value: "both" },
+                        ],
+                        defaultValue: ["native"],
+                        multiSelect: false,
+                    },
+                    {
+                        type: "string",
+                        name: AppSetting.ModNoteTemplate,
+                        label: "Template for mod note",
+                        helpText: "Placeholders supported: {{sublist}}, {{domainlist}}.",
+                        defaultValue: "User has history in: {{sublist}}",
                     },
                 ],
             },

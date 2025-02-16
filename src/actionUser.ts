@@ -7,6 +7,7 @@ import { sendModmail } from "./actions/modmail.js";
 import { replyToContent } from "./actions/reply.js";
 import { banUser } from "./actions/ban.js";
 import { AppSetting } from "./settings.js";
+import { addModNote } from "./actions/modNote.js";
 
 export async function actionUser (userName: string, targetId: string | undefined, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
@@ -76,5 +77,6 @@ export async function actionUser (userName: string, targetId: string | undefined
         removeContent(target, settings, context),
         replyToContent(target, problematicItemsResult, settings, context),
         sendModmail(target, problematicItemsResult, settings, context),
+        addModNote(target, problematicItemsResult, settings, context),
     );
 }
