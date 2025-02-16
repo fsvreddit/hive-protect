@@ -58,6 +58,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 ### Next
 
 * Add ability to perform a second check on a user a period of time after the initial one, to protect against users who may look inocuous at first but may do things like add OnlyFans links after they initially comment. If this option is chosen, users will only get a single second check every 28 days.
+* Add ability to add a mod note (native or Toolbox) when a user is found to have content in an undesirable subreddit
 
 ### 1.10.2
 
