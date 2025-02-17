@@ -370,6 +370,7 @@ export const appSettings: SettingsFormField[] = [
                         type: "select",
                         name: AppSetting.ModNoteType,
                         label: "Type of mod note to add",
+                        helpText: "Don't choose 'both' if you are using a notes synchronisation tool",
                         options: [
                             { label: "Native mod note", value: "native" },
                             { label: "Toolbox usernote", value: "toolbox" },
