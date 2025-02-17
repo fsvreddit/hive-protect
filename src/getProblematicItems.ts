@@ -5,7 +5,6 @@ import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from 
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
 import { addHours, subDays } from "date-fns";
-import { queueSecondCheck } from "./secondChecks.js";
 
 export const CACHE_DURATION_HOURS = 12;
 
@@ -281,11 +280,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             }
         } else {
             result = emptyResult;
-        }
-
-        const secondCheckInterval = settings[AppSetting.SecondCheckInterval] as number | undefined;
-        if (secondCheckInterval) {
-            await queueSecondCheck(userName, secondCheckInterval, context);
         }
     }
 
