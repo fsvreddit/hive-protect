@@ -2,6 +2,7 @@ import { TriggerContext } from "@devvit/public-api";
 import { AppInstall, AppUpgrade } from "@devvit/protos";
 import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
 import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
+import { CLEANUP_JOB } from "./constants.js";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
     // Clean up old redis key, no longer used.
@@ -17,7 +18,7 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     console.log(`Running cleanup job at ${minute} past every 6th hour starting at ${hour}.`);
 
     await context.scheduler.runJob({
-        name: "cleanupDeletedAccounts",
+        name: CLEANUP_JOB,
         cron: `${minute} ${hour}/6 * * *`,
     });
 
@@ -31,8 +32,9 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
 
     await oneOffCheckForOversizeSettings(context);
 
-    // Remove unused Redis key.
+    // Remove unused Redis keys.
     await context.redis.del("appName");
+    await context.redis.del("secondCheckQueue");
 }
 
 async function oneOffCheckForOversizeSettings (context: TriggerContext) {

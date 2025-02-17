@@ -1,5 +1,5 @@
 import { Comment, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
-import { ProblematicSubsResult } from "../hiveProtect.js";
+import { ProblematicSubsResult } from "../getProblematicItems.js";
 import { AppSetting } from "../settings.js";
 
 export async function sendModmail (target: Post | Comment, problematicItemsResult: ProblematicSubsResult, settings: SettingsValues, context: TriggerContext) {

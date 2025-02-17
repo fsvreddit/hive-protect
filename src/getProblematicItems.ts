@@ -1,132 +1,14 @@
-import { TriggerContext, Post, Comment, GetUserOverviewOptions, User } from "@devvit/public-api";
-import { CommentSubmit, PostSubmit, ModAction } from "@devvit/protos";
-import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
-import { addDays, addHours, subDays } from "date-fns";
-import { isModerator, isContributor, domainFromUrlString, trimLeadingWWW, getPostOrCommentById } from "./utility.js";
-import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
-import { setCleanupForUser } from "./cleanupTasks.js";
-import { isUserBlockingAppAccount } from "./blockChecker.js";
-import { reportContent } from "./actions/report.js";
-import { removeContent } from "./actions/remove.js";
-import { replyToContent } from "./actions/reply.js";
-import { sendModmail } from "./actions/modmail.js";
-import { banUser } from "./actions/ban.js";
-import _ from "lodash";
+import { Comment, GetUserOverviewOptions, Post, TriggerContext, User } from "@devvit/public-api";
+import { uniq } from "lodash";
+import { AppSetting, PrevBanBehaviour } from "./settings.js";
+import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
+import { isUserBlockingAppAccount } from "./blockChecker.js";
+import { addHours, subDays } from "date-fns";
 
-export const APPROVALS_KEY = "ItemApprovalCount";
+export const CACHE_DURATION_HOURS = 12;
 
-export async function handlePostSubmitEvent (event: PostSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.post || !event.subreddit || event.author.name === context.appName) {
-        console.log("Event is not in the right state.");
-        return;
-    }
-
-    await handlePostOrCommentSubmitEvent(event.post.id, event.subreddit.name, event.author.name, context);
-}
-
-export async function handleCommentSubmitEvent (event: CommentSubmit, context: TriggerContext) {
-    if (!event.author?.name || !event.comment || !event.subreddit || event.author.name === context.appName) {
-        console.log("Event is not in the right state.");
-        return;
-    }
-
-    await handlePostOrCommentSubmitEvent(event.comment.id, event.subreddit.name, event.author.name, context);
-}
-
-export async function handlePostOrCommentSubmitEvent (targetId: string, subredditName: string, userName: string, context: TriggerContext) {
-    if (userName === "AutoModerator" || userName === `${subredditName}-ModTeam`) {
-        // Automod could legitimately have activity in "bad" subreddits, but we never want to act on it.
-        console.log(`${userName} is exempt from all checks.`);
-        return false;
-    }
-
-    const problematicItemsResult = await problematicItemsFound(context, subredditName, userName);
-
-    if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
-        if (problematicItemsResult.userBlocking) {
-            const redisKey = `userBlocking~${userName}`;
-            const hasBeenReported = await context.redis.get(redisKey);
-            if (!hasBeenReported) {
-                const target = await getPostOrCommentById(targetId, context);
-                await context.reddit.report(target, { reason: "User may be blocking bot. Check history for subs not modded by Hive Protector." });
-            }
-            await context.redis.set(redisKey, "true", { expiration: addDays(new Date(), 7) });
-        }
-        return;
-    }
-
-    const redisKey = `alreadyChecked~${targetId}`;
-    const alreadyChecked = await context.redis.get(redisKey);
-    if (alreadyChecked) {
-        console.log(`Duplicate event fired for ${targetId}`);
-        return;
-    }
-    await context.redis.set(redisKey, "true", { expiration: addHours(new Date(), 6) });
-
-    const settings = await context.settings.getAll();
-
-    // Now check if the submission is of a type configured to be checked.
-    // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
-    // So for most cases, we might be able to reduce load by ruling out based on recently cached negative checks first.
-    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
-    if ((typesToActOn === ContentTypeToActOn.PostsOnly && isCommentId(targetId)) || (typesToActOn === ContentTypeToActOn.CommentsOnly && isLinkId(targetId))) {
-        // Invalid type of item to check.
-        return;
-    }
-
-    let user: User | undefined;
-    try {
-        user = await context.reddit.getUserByUsername(userName);
-    } catch {
-        //
-    }
-
-    if (!user) {
-        console.log("User object is not defined. This should be impossible if we checked user.");
-        return;
-    }
-
-    if (user.isAdmin) {
-        console.log(`${userName} is an admin! No action will be taken.`);
-        return;
-    }
-
-    const userFlairWhitelist = settings[AppSetting.FlairWhitelist] as string | undefined;
-    if (userFlairWhitelist) {
-        const whitelistedFlairs = userFlairWhitelist.split(",").map(x => x.toLowerCase().trim());
-        const userFlair = await user.getUserFlairBySubreddit(subredditName);
-        if (userFlair?.flairText && whitelistedFlairs.includes(userFlair.flairText.toLowerCase())) {
-            console.log(`User's flair (${userFlair.flairText} is whitelisted. No action will be taken,`);
-            return;
-        }
-    }
-
-    const banEnabled = settings[AppSetting.BanEnabled] as boolean | undefined ?? true;
-
-    const target = await getPostOrCommentById(targetId, context);
-
-    const actions: Promise<void>[] = [];
-
-    if (banEnabled && problematicItemsResult.userBannable) {
-        actions.push(banUser(context, subredditName, userName, problematicItemsResult));
-    }
-
-    if (!settings[AppSetting.ApplyBanBehavioursToOtherActions] && !problematicItemsResult.userBannable) {
-        console.log("Other action options are turned on, but user was previously unbanned. Skipping");
-        return;
-    }
-
-    // Perform actions!
-    actions.push(
-        reportContent(target, problematicItemsResult, settings, context),
-        removeContent(target, settings, context),
-        replyToContent(target, problematicItemsResult, settings, context),
-        sendModmail(target, problematicItemsResult, settings, context),
-    );
-}
-
-function getLatestResultKey (username: string) {
+export function getLatestResultKey (username: string) {
     return `participation-lastcheck-${username}`;
 }
 
@@ -178,7 +60,7 @@ export function isOverThreshold (items: BadSubItem[], combinedThreshold: number,
         }
 
         const itemsViaDomainCount = items.filter(x => x.foundViaDomain).length;
-        const distinctSubCount = _.uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
+        const distinctSubCount = uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
 
         return itemsViaDomainCount >= threshold || (items.length >= threshold && distinctSubCount >= minSubCount);
     }
@@ -219,7 +101,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const lastResult = await lastCheckResult(context, userName);
 
     if (lastResult && !ignoreCachedResults) {
-        console.log(`Most recent check on ${userName} was too recent.`);
         return lastResult;
     }
 
@@ -278,7 +159,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             userContent = await context.reddit.getCommentsByUser(userOverviewOptions).all();
         }
     } catch {
-        console.log(`Error retrieving posts or comments for ${userName}. Likely shadowbanned`);
         return emptyResult;
     }
 
@@ -352,7 +232,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const badCommentCount = badSubItems.filter(item => item.item instanceof Comment).length;
     const badDomainCount = matchingSocialLinksDomains.length;
 
-    if (badPostCount === 0 && badCommentCount === 0 && domainList.length === 0) {
+    if (badPostCount === 0 && badCommentCount === 0 && badDomainCount === 0) {
         console.log(`Found no items of concern for ${userName}.`);
     } else {
         console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)}, ${badCommentCount} ${pluralize("comment", badCommentCount)} and ${badDomainCount} ${pluralize("domain", badDomainCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
@@ -378,8 +258,8 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     let result: ProblematicSubsResult;
     if (failsChecks) {
         result = {
-            badSubs: _.uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
-            badDomains: _.uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
+            badSubs: uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
+            badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
             itemPermalink: badSubItems[0]?.item.permalink,
             userBannable,
             userBlocking: false,
@@ -403,47 +283,14 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     }
 
-    // Store record of this result. Cache for 1 hour if a positive result, or 6 hours if negative.
+    // Store record of this result. Cache for 1 hour if a positive result, or 12 hours if negative.
     let cacheExpiryTime: Date;
     if (result.badSubs.length > 0 || result.badDomains.length > 0) {
         cacheExpiryTime = addHours(new Date(), 1);
     } else {
-        cacheExpiryTime = addHours(new Date(), 6);
+        cacheExpiryTime = addHours(new Date(), CACHE_DURATION_HOURS);
     }
     await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), { expiration: cacheExpiryTime });
 
     return result;
-}
-
-export async function handleModActionEvent (event: ModAction, context: TriggerContext) {
-    if (event.targetUser && (event.action === "unbanuser" || event.action === "banuser")) {
-        console.log(`Detected a ${event.action} event for ${event.targetUser.name}. Removing cached check results that may exist.`);
-        // Clear down previous check after unban
-        await context.redis.del(getLatestResultKey(event.targetUser.name));
-    }
-
-    if (event.targetUser && (event.action === "approvecomment" || event.action === "approvelink")) {
-        let targetId: string | undefined;
-        if (event.action === "approvecomment") {
-            targetId = event.targetComment?.id;
-        } else {
-            targetId = event.targetPost?.id;
-        }
-
-        if (!targetId) {
-            // This should be impossible, but handle anyway.
-            return;
-        }
-
-        // Check to see if post/comment was previously flagged by this app.
-        const itemReported = await context.redis.get(`itemreported~${targetId}`);
-        if (!itemReported) {
-            return;
-        }
-
-        // Increment approvals counter.
-        const newApprovalCount = await context.redis.zIncrBy(APPROVALS_KEY, event.targetUser.name, 1);
-        await setCleanupForUser(event.targetUser.name, context);
-        console.log(`Approved a reported comment by ${event.targetUser.name}. Approval counter is now ${newApprovalCount}.`);
-    }
 }

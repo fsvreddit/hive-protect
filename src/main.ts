@@ -1,8 +1,10 @@
 import { Devvit } from "@devvit/public-api";
-import { handleCommentSubmitEvent, handleModActionEvent, handlePostSubmitEvent } from "./hiveProtect.js";
+import { handleCommentSubmitEvent, handlePostSubmitEvent } from "./handleContentCreation.js";
 import { appSettings } from "./settings.js";
 import { handleAppInstallOrUpgradeEvent } from "./installEventHandlers.js";
 import { cleanupDeletedAccounts } from "./cleanupTasks.js";
+import { CLEANUP_JOB } from "./constants.js";
+import { handleModActionEvent } from "./handleModActions.js";
 
 Devvit.addSettings(appSettings);
 
@@ -27,7 +29,7 @@ Devvit.addTrigger({
 });
 
 Devvit.addSchedulerJob({
-    name: "cleanupDeletedAccounts",
+    name: CLEANUP_JOB,
     onRun: cleanupDeletedAccounts,
 });
 

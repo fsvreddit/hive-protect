@@ -1,5 +1,5 @@
 import { TriggerContext } from "@devvit/public-api";
-import { ProblematicSubsResult } from "../hiveProtect.js";
+import { ProblematicSubsResult } from "../getProblematicItems.js";
 import { AppSetting } from "../settings.js";
 import { setCleanupForUser } from "../cleanupTasks.js";
 import { isBanned } from "../utility.js";

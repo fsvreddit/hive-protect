@@ -1,4 +1,4 @@
-import { BadSubItem, Domain, isDomainInList, isOverThreshold, MockSubItem } from "./hiveProtect.js";
+import { BadSubItem, Domain, isDomainInList, isOverThreshold, MockSubItem } from "./getProblematicItems.js";
 
 test("Exact domain", () => {
     const input = "bbc.co.uk";
