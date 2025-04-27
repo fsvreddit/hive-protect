@@ -21,12 +21,14 @@ export async function handleModActionEvent (event: ModAction, context: TriggerCo
 
         if (!targetId) {
             // This should be impossible, but handle anyway.
+            console.error("No targetId found for approve event. This should not happen.");
             return;
         }
 
         // Check to see if post/comment was previously flagged by this app.
         const itemReported = await context.redis.get(`itemreported~${targetId}`);
         if (!itemReported) {
+            console.log(`Item ${targetId} was not reported by this app. Not incrementing approval count.`);
             return;
         }
 

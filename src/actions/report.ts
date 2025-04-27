@@ -16,9 +16,10 @@ export async function reportContent (target: Post | Comment, problematicItemsRes
 
     const whitelistThreshold = settings[AppSetting.ReportNumber] as number | undefined ?? 3;
     let shouldReport = true;
+    let currentApprovalCount: number | undefined;
     if (whitelistThreshold) {
         try {
-            const currentApprovalCount = await context.redis.zScore(APPROVALS_KEY, target.authorName);
+            currentApprovalCount = await context.redis.zScore(APPROVALS_KEY, target.authorName);
             if (currentApprovalCount !== undefined && currentApprovalCount >= whitelistThreshold) {
                 console.log(`User ${target.authorName} has too many approvals to report.`);
                 shouldReport = false;
@@ -31,6 +32,7 @@ export async function reportContent (target: Post | Comment, problematicItemsRes
     if (shouldReport) {
         reportReason = replaceAll(reportReason, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
         reportReason = replaceAll(reportReason, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+        reportReason = replaceAll(reportReason, "{{approvals}}", currentApprovalCount?.toString() ?? "0");
         await context.reddit.report(target, { reason: reportReason });
         await context.redis.set(`itemreported~${target.id}`, new Date().getTime.toString(), { expiration: addDays(new Date(), 7) });
         console.log(`Reported comment ${target.id}`);
