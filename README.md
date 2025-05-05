@@ -55,6 +55,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### 1.10.23
+
+* Add ability to stop sending modmails for a user after N approvals
+
 ### 1.10.20
 
 * Add ability to add a mod note (native or Toolbox) when a user is found to have content in an undesirable subreddit
