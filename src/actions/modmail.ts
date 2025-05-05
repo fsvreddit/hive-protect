@@ -2,6 +2,7 @@ import { Comment, Post, SettingsValues, TriggerContext } from "@devvit/public-ap
 import { ProblematicSubsResult } from "../getProblematicItems.js";
 import { AppSetting } from "../settings.js";
 import { APPROVALS_KEY } from "../handleContentCreation.js";
+import json2md from "json2md";
 
 export async function sendModmail (target: Post | Comment, problematicItemsResult: ProblematicSubsResult, settings: SettingsValues, context: TriggerContext) {
     if (!settings[AppSetting.ModmailEnabled]) {
@@ -28,21 +29,29 @@ export async function sendModmail (target: Post | Comment, problematicItemsResul
         return;
     }
 
-    let message = `User /u/${target.authorName} has been identified by Hive Protector as potentially having undesirable history.\n\n`;
+    const message: json2md.DataObject[] = [
+        { p: `User /u/${target.authorName} has been identified by Hive Protector as potentially having undesirable history.` },
+    ];
+
+    const bullets: string[] = [];
     if (problematicItemsResult.badSubs.length > 0) {
-        message += `* Problematic Subreddits found: ${problematicItemsResult.badSubs.join(", ")}\n`;
+        bullets.push(`* Problematic Subreddits found: ${problematicItemsResult.badSubs.join(", ")}`);
     }
 
     if (problematicItemsResult.badDomains.length > 0) {
-        message += `* Problematic Domains found: ${problematicItemsResult.badDomains.join(", ")}\n`;
+        bullets.push(`* Problematic Domains found: ${problematicItemsResult.badDomains.join(", ")}`);
     }
 
-    message += `\nUser was caught after making [this post or comment](${target.permalink}).`;
+    if (bullets.length > 0) {
+        message.push({ ul: bullets });
+    }
+
+    message.push({ p: `User was caught after making [this post or comment](${target.permalink}).` });
 
     await context.reddit.modMail.createModInboxConversation({
         subredditId: context.subredditId,
         subject: `Hive Protector notice for /u/${target.authorName}`,
-        bodyMarkdown: message,
+        bodyMarkdown: json2md(message),
     });
 
     console.log("Modmail sent.");

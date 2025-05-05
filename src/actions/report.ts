@@ -14,13 +14,13 @@ export async function reportContent (target: Post | Comment, problematicItemsRes
         return;
     }
 
-    const whitelistThreshold = settings[AppSetting.ReportNumber] as number | undefined ?? 3;
+    const allowlistThreshold = settings[AppSetting.ReportNumber] as number | undefined ?? 3;
     let shouldReport = true;
     let currentApprovalCount: number | undefined;
-    if (whitelistThreshold) {
+    if (allowlistThreshold) {
         try {
             currentApprovalCount = await context.redis.zScore(APPROVALS_KEY, target.authorName);
-            if (currentApprovalCount !== undefined && currentApprovalCount >= whitelistThreshold) {
+            if (currentApprovalCount !== undefined && currentApprovalCount >= allowlistThreshold) {
                 console.log(`User ${target.authorName} has too many approvals to report.`);
                 shouldReport = false;
             }

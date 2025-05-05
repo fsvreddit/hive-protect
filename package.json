@@ -12,9 +12,11 @@
     "@devvit/protos": "0.11.13",
     "@devvit/public-api": "0.11.13",
     "@devvit/shared-types": "0.11.13",
+    "@types/json2md": "^1.5.4",
     "@types/lodash": "^4.14.202",
     "@types/pluralize": "^0.0.33",
     "date-fns": "^4.0.0",
+    "json2md": "^2.0.3",
     "lodash": "^4.17.21",
     "pluralize": "^8.0.0",
     "toolbox-devvit": "^0.3.2"
