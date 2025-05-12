@@ -59,6 +59,15 @@ test("Subdomain not in list", () => {
     expect(isDomainInList(input, domains)).toBeFalsy();
 });
 
+test("Global wildcard should match everything", () => {
+    const input = "lucid.substack.com";
+    const domains: Domain[] = [
+        { domain: "*", wildcard: false },
+    ];
+
+    expect(isDomainInList(input, domains)).toBeTruthy();
+});
+
 test("Multi-subreddit matches", () => {
     const input: BadSubItem[] = [
         {

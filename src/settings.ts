@@ -95,7 +95,7 @@ export const appSettings: SettingsFormField[] = [
             {
                 type: "paragraph",
                 name: AppSetting.Domains,
-                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com",
+                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com. Use * to match everything.",
                 onValidate: ({ value }) => {
                     if (!value) {
                         return;
