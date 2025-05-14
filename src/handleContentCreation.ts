@@ -33,7 +33,8 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, subreddi
         return false;
     }
 
-    const problematicItemsResult = await problematicItemsFound(context, subredditName, userName);
+    const kind = isLinkId(targetId) ? "link" : "comment";
+    const problematicItemsResult = await problematicItemsFound(context, subredditName, userName, kind);
 
     if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
         if (problematicItemsResult.userBlocking) {

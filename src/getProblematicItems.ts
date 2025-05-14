@@ -1,6 +1,6 @@
 import { Comment, GetUserOverviewOptions, Post, TriggerContext, User } from "@devvit/public-api";
 import { uniq } from "lodash";
-import { AppSetting, PrevBanBehaviour } from "./settings.js";
+import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
 import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
@@ -89,7 +89,7 @@ export function isDomainInList (domain: string, domainList: Domain[]): boolean {
     return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
-export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
+export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
     const emptyResult = {
         badSubs: [],
         badDomains: [],
@@ -105,6 +105,11 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     }
 
     const settings = await context.settings.getAll();
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
+    if ((typesToActOn === ContentTypeToActOn.PostsOnly && kind === "comment") || (typesToActOn === ContentTypeToActOn.CommentsOnly && kind === "link")) {
+        return emptyResult;
+    }
+
     const combinedThreshold = settings[AppSetting.CombinedItemCount] as number | undefined ?? 0;
     const postThreshold = settings[AppSetting.PostCount] as number | undefined ?? 0;
     const commentThreshold = settings[AppSetting.CommentCount] as number | undefined ?? 0;
