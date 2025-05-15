@@ -9,6 +9,7 @@ export async function replyToContent (target: Post | Comment, problematicItemsRe
     if (replyMessage) {
         replyMessage = replaceAll(replyMessage, "{{sublist}}", problematicItemsResult.badSubs.join(", "));
         replyMessage = replaceAll(replyMessage, "{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+        replyMessage = replaceAll(replyMessage, "{{socialurls}}", problematicItemsResult.socialURLs.join("  \n"));
         replyMessage = replaceAll(replyMessage, "{{permalink}}", problematicItemsResult.itemPermalink ?? "");
         replyMessage = replaceAll(replyMessage, "{{username}}", target.authorName);
 

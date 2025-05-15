@@ -18,6 +18,7 @@ export async function banUser (context: TriggerContext, subredditName: string, u
     if (banMessage) {
         banMessage = banMessage.replace("{{sublist}}", problematicItemsResult.badSubs.join(", "));
         banMessage = banMessage.replace("{{domainlist}}", problematicItemsResult.badDomains.join(", "));
+        banMessage = banMessage.replace("{{socialurls}}", problematicItemsResult.socialURLs.join("  \n"));
         banMessage = banMessage.replace("{{permalink}}", problematicItemsResult.itemPermalink ?? "");
         banMessage = banMessage.replace("{{username}}", userName);
     }
