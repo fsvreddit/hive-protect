@@ -2,7 +2,7 @@
 
 A Reddit app that can be used to ban, report or remove content from users of "undesirable" subreddits from participating in another. Originally inspired by SafestBot.
 
-Warning: Use of this app to take action against users of subreddits on the basis of identity or vulnerability may be a breach of Reddit's [Mod Code of Conduct](https://support.reddithelp.com/hc/en-us/articles/27031145215252-Moderator-Code-of-Conduct-Rule-3-Respect-Your-Neighbors). Please be mindful of these rules and ensure that any ban messages or comment/post replies are civil and compliant with these policies.
+**Warning**: Use of this app to take action against users of subreddits on the basis of identity or vulnerability may be a breach of Reddit's [Mod Code of Conduct](https://support.reddithelp.com/hc/en-us/articles/27031145215252-Moderator-Code-of-Conduct-Rule-3-Respect-Your-Neighbors). Please be mindful of these rules and ensure that any ban messages or comment/post replies are civil and compliant with these policies.
 
 ### Detection Options
 
@@ -20,7 +20,7 @@ You can also choose to exempt Approved Users, specific users based on username a
 
 ### Ban options
 
-Banning users is optional, you can choose to remove, report, reply or send modmail instead.
+Banning users is optional, you can choose to remove, report, reply or send modmail instead. Please consider informing users in the ban message which subreddits or domains that they were detected in, and I recommend having a transparent appeal process in place.
 
 The application supports three main modes of handling users who have previously been banned by the app.
 
@@ -32,7 +32,7 @@ You can choose to make a report on the user, remove their post/comment, reply to
 
 ## Operation notes
 
-The app will only check a user once every six hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
+The app will only check a user once every 24 hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
 
 However, if a user is unbanned, previously cached results are cleared because an unban may be as a result of a user cleaning up their profile, so it may need to be checked again.
 
@@ -42,7 +42,9 @@ The app will never ban a user based on content in the subreddit the app is insta
 
 * Banning users who have participated in free karma subreddits
 * Banning or reporting users from R4R subreddits who have posted in Onlyfans promo subs, or have posted Onlyfans/Fansly links anywhere on Reddit, or have an Onlyfans "social link" on their bio
+* Banning or reporting users of fetish subreddits in SFW subreddits discussing the same topic (e.g. a women's hair styling subreddit might not welcome users with a hair fetish)
 * Adding a sticky comment on a post in NSFW subreddits warning users about the user's post history in OF promotion subs/sharing OF links elsewhere
+* Removing posts in a NSFW subreddit from users with participation history in teen-focussed subreddits or vice-versa
 
 ## Data stored by the app
 
@@ -60,6 +62,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 ### Next
 
 * Reduce Dev Platform resource utilisation if "content types to check" is posts or comments, not both
+* Update documentation to make mod responsibilities under the Mod Code of Conduct clear
 
 ### 1.10.23
 
