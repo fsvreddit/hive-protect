@@ -84,6 +84,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.Subreddits,
                 label: "Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all",
+                helpText: "Warning: targeting subreddits on the basis of identity or vulnerability may be a breach of Reddit's Mod Code of Conduct.",
             },
             {
                 type: "number",

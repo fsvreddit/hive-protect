@@ -2,6 +2,8 @@
 
 A Reddit app that can be used to ban, report or remove content from users of "undesirable" subreddits from participating in another. Originally inspired by SafestBot.
 
+Warning: Use of this app to take action against users of subreddits on the basis of identity or vulnerability may be a breach of Reddit's [Mod Code of Conduct](https://support.reddithelp.com/hc/en-us/articles/27031145215252-Moderator-Code-of-Conduct-Rule-3-Respect-Your-Neighbors). Please be mindful of these rules and ensure that any ban messages or comment/post replies are civil and compliant with these policies.
+
 ### Detection Options
 
 **List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U, FreeKarmaForAll. Not case sensitive.
