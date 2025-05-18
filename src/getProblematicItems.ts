@@ -268,7 +268,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         result = {
             badSubs: uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
             badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
-            socialURLs: socialURLs,
+            socialURLs: uniq(socialURLs),
             itemPermalink: badSubItems[0]?.item.permalink,
             userBannable,
             userBlocking: false,
