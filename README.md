@@ -63,6 +63,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 
 * Reduce Dev Platform resource utilisation if "content types to check" is posts or comments, not both
 * Added global wildcard support
+* Add social URLs placeholder to ban message
 * Update documentation to make mod responsibilities under the Mod Code of Conduct clear
 
 ### 1.10.23
