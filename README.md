@@ -38,6 +38,8 @@ However, if a user is unbanned, previously cached results are cleared because an
 
 The app will never ban a user based on content in the subreddit the app is installed in - you cannot use this as a "ban anyone who posts or comments" bot.
 
+Hive Protector only looks back at a user's most recent 100 posts/comments, so detection will not be possible on older content.
+
 ## Example use cases
 
 * Banning users who have participated in free karma subreddits
