@@ -94,6 +94,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const emptyResult = {
         badSubs: [],
         badDomains: [],
+        socialURLs: [],
         userBannable: false,
         userBlocking: false,
     } as ProblematicSubsResult;
@@ -189,7 +190,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
         if (user) {
             const socialLinks = await user.getSocialLinks();
-            socialURLs = socialLinks.map(link => link.outboundUrl);
+            socialURLs.push(...socialLinks.map(link => link.outboundUrl));
             matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
             hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
         }
@@ -281,6 +282,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                 result = {
                     badDomains: [],
                     badSubs: [],
+                    socialURLs: [],
                     userBannable: false,
                     userBlocking: true,
                 } as ProblematicSubsResult;
