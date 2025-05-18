@@ -1,6 +1,6 @@
 import { Comment, GetUserOverviewOptions, Post, TriggerContext, User } from "@devvit/public-api";
 import { uniq } from "lodash";
-import { AppSetting, PrevBanBehaviour } from "./settings.js";
+import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
 import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
@@ -15,6 +15,7 @@ export function getLatestResultKey (username: string) {
 export interface ProblematicSubsResult {
     badSubs: string[];
     badDomains: string[];
+    socialURLs: string[];
     itemPermalink?: string;
     userBannable: boolean;
     userBlocking: boolean;
@@ -86,13 +87,14 @@ export interface Domain {
 }
 
 export function isDomainInList (domain: string, domainList: Domain[]): boolean {
-    return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
+    return domainList.some(item => domain === item.domain || item.domain === "*" || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
-export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
+export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
     const emptyResult = {
         badSubs: [],
         badDomains: [],
+        socialURLs: [],
         userBannable: false,
         userBlocking: false,
     } as ProblematicSubsResult;
@@ -105,6 +107,11 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     }
 
     const settings = await context.settings.getAll();
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
+    if ((typesToActOn === ContentTypeToActOn.PostsOnly && kind === "comment") || (typesToActOn === ContentTypeToActOn.CommentsOnly && kind === "link")) {
+        return emptyResult;
+    }
+
     const combinedThreshold = settings[AppSetting.CombinedItemCount] as number | undefined ?? 0;
     const postThreshold = settings[AppSetting.PostCount] as number | undefined ?? 0;
     const commentThreshold = settings[AppSetting.CommentCount] as number | undefined ?? 0;
@@ -172,6 +179,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
     let hasMatchingSocialLinks = false;
     const matchingSocialLinksDomains: string[] = [];
+    const socialURLs: string[] = [];
     if (settings[AppSetting.CheckSocialLinks] && domainList.length > 0) {
         let user: User | undefined;
         try {
@@ -182,6 +190,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
         if (user) {
             const socialLinks = await user.getSocialLinks();
+            socialURLs.push(...socialLinks.map(link => link.outboundUrl));
             matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
             hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
         }
@@ -260,6 +269,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         result = {
             badSubs: uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
             badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
+            socialURLs: uniq(socialURLs),
             itemPermalink: badSubItems[0]?.item.permalink,
             userBannable,
             userBlocking: false,
@@ -272,6 +282,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                 result = {
                     badDomains: [],
                     badSubs: [],
+                    socialURLs: [],
                     userBannable: false,
                     userBlocking: true,
                 } as ProblematicSubsResult;
