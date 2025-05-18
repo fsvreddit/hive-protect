@@ -86,7 +86,7 @@ export interface Domain {
 }
 
 export function isDomainInList (domain: string, domainList: Domain[]): boolean {
-    return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
+    return domainList.some(item => domain === item.domain || item.domain === "*" || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
 export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
