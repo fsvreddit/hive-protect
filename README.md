@@ -61,7 +61,7 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
-### Next
+### 1.10.25
 
 * Reduce Dev Platform resource utilisation if "content types to check" is posts or comments, not both
 * Added global wildcard support
