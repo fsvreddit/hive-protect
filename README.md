@@ -62,6 +62,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 ### Next
 
 * Reduce Dev Platform resource utilisation if "content types to check" is posts or comments, not both
+* Added global wildcard support
 * Update documentation to make mod responsibilities under the Mod Code of Conduct clear
 
 ### 1.10.23
@@ -94,3 +95,5 @@ For any feedback on the bot itself including bugs and enhancements, please post 
 ## Source code
 
 This app is open source. You can find it on Github [here](https://github.com/fsvreddit/hive-protect).
+
+With thanks to /u/Quick-Pumpkin-1259 for their contributions to the app's code.
