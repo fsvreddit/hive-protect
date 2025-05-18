@@ -217,7 +217,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "paragraph",
                 name: AppSetting.BanMessage,
                 label: "Enter a ban message to send to users",
-                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains and {{permalink}} with the latest post or comment that was detected.",
+                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{socialurls}}, {{permalink}} and {{username}}. {{sublist}} and {{domainlist}} will be replaced with a comma-separated list of the matched subs or domains and {{permalink}} with the latest post or comment that was detected.",
                 onValidate: ({ value }) => textFieldIsUnderLimit(value, BAN_MESSAGE_MAX_LENGTH),
             },
             {
@@ -290,7 +290,7 @@ export const appSettings: SettingsFormField[] = [
                         type: "paragraph",
                         name: AppSetting.ReplyTemplate,
                         label: "Leave a reply with a reply based on this template",
-                        helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{permalink}} and {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
+                        helpText: "Optional. If left blank, no reply will be left. Placeholders supported: {{sublist}}, {{domainlist}}, {{socialurls}}, {{permalink}} and {{username}}. Can be used either as a removal message, or as a notification if content is left up.",
                     },
                     {
                         type: "boolean",

@@ -15,6 +15,7 @@ export function getLatestResultKey (username: string) {
 export interface ProblematicSubsResult {
     badSubs: string[];
     badDomains: string[];
+    socialURLs: string[];
     itemPermalink?: string;
     userBannable: boolean;
     userBlocking: boolean;
@@ -177,6 +178,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
     let hasMatchingSocialLinks = false;
     const matchingSocialLinksDomains: string[] = [];
+    const socialURLs: string[] = [];
     if (settings[AppSetting.CheckSocialLinks] && domainList.length > 0) {
         let user: User | undefined;
         try {
@@ -187,6 +189,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
         if (user) {
             const socialLinks = await user.getSocialLinks();
+            socialURLs = socialLinks.map(link => link.outboundUrl);
             matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
             hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
         }
@@ -265,6 +268,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         result = {
             badSubs: uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
             badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
+            socialURLs: socialURLs,
             itemPermalink: badSubItems[0]?.item.permalink,
             userBannable,
             userBlocking: false,
