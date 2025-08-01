@@ -35,6 +35,8 @@ export enum AppSetting {
     ModNoteType = "modNoteType",
     ModNoteTemplate = "modNoteTemplate",
     AntiBlockCheckerEnable = "antiBlockCheckerEnabled",
+    // App scoped settings
+    SitewideBannedDomains = "sitewideBannedDomains",
 }
 
 export enum PrevBanBehaviour {
@@ -398,5 +400,12 @@ export const appSettings: SettingsFormField[] = [
                 ],
             },
         ],
+    },
+    {
+        type: "string",
+        name: AppSetting.SitewideBannedDomains,
+        scope: "app",
+        label: "Sitewide banned domains",
+        defaultValue: "beacons.ai",
     },
 ];
