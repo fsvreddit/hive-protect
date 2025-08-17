@@ -11,7 +11,7 @@ No other information relating to users is stored.
 
 This app uses Discord and Slack'ss webhooks functionality to notify subreddit moderators of detections.
 
-Data on Reddit falls under the [Reddit Privacy Policy](https://www.reddit.com/policies/privacy-policy). Data is only sent to the destination provided by the user and, depending on the destination, the [Discord](https://discord.com/privacy) privacy policy may apply to sent content.
+Data on Reddit falls under the [Reddit Privacy Policy](https://www.reddit.com/policies/privacy-policy). Data is only sent to the destination provided by the user and, depending on the destination, the [Discord](https://discord.com/privacy) or [Slack](https://slack.com/intl/en-gb/trust/privacy/privacy-policy) privacy policy may apply to sent content.
 
 ## Terms and Conditions
 

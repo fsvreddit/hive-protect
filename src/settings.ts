@@ -2,6 +2,7 @@ import { SettingsFormField, SettingsFormFieldValidatorEvent } from "@devvit/publ
 import { trimLeadingWWW } from "./utility.js";
 
 export enum AppSetting {
+    // Detection options
     Subreddits = "subreddits",
     NumberOfSubredditsThatMustMatch = "numSubredditsToMatch",
     Domains = "domains",
@@ -9,32 +10,61 @@ export enum AppSetting {
     CombinedItemCount = "itemcount",
     PostCount = "postcount",
     CommentCount = "commentcount",
+    ExemptAccountsWithLowKarmaInProblematicSubs = "exemptAccountsWithKarmaInProblematicSubs",
+
     DaysToMonitor = "daystomonitor",
     CheckSocialLinks = "checkSocialLinks",
+    CheckBioTextForLinks = "checkBioTextForLinks",
+
+    // Exemption options
     ExemptApprovedUser = "exemptapproveduser",
     UserWhitelist = "userWhitelist",
     FlairWhitelist = "flairWhitelist",
+    FlairCSSClassWhitelist = "flairCSSClassWhitelist",
+    ExemptAccountOlderThanDays = "exemptAccountOlderThanDays",
+    ExemptAccountWithThisLinkKarma = "exemptAccountWithThisLinkKarma",
+    ExemptAccountWithThisCommentKarma = "exemptAccountWithThisCommentKarma",
+
+    // Ban options
     BanEnabled = "banenabled",
     BehaviourIfPrevBan = "behaviourifprevban",
     ApplyBanBehavioursToOtherActions = "banBehaviourForAllActions",
     BanMessage = "banmessage",
     BanNote = "bannote",
     BanDuration = "banduration",
+
+    // Removal options
     RemoveEnabled = "removeenabled",
     RemoveAsSpam = "removeAsSpam",
     PurgeContent = "purgeContent",
+
+    // Reply options
     ReplyTemplate = "removalreasontemplate",
     LockReply = "lockreply",
     StickyReply = "stickyreply",
+    NumberOfRepliesToMake = "numberOfRepliesToMake",
+
+    // Report options
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
     ReportNumber = "reportnumber",
+
+    // Modmail options
     ModmailEnabled = "modmailEnabled",
     ModmailNumber = "modmailNumber",
+
+    // Mod note options
     ModNoteEnabled = "modNoteEnabled",
     ModNoteType = "modNoteType",
     ModNoteTemplate = "modNoteTemplate",
+
+    // Alert by Discord/Slack options
+    DiscordOrSlackWebhook = "discordOrSlackWebhook",
+    DiscordSuppressEmbeds = "discordSuppressEmbeds",
+
+    // Block Checker
     AntiBlockCheckerEnable = "antiBlockCheckerEnabled",
+
     // App scoped settings
     SitewideBannedDomains = "sitewideBannedDomains",
 }
@@ -98,7 +128,7 @@ export const appSettings: SettingsFormField[] = [
             {
                 type: "paragraph",
                 name: AppSetting.Domains,
-                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com. Use * to match everything.",
+                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com.",
                 onValidate: ({ value }) => {
                     if (!value) {
                         return;
@@ -110,7 +140,7 @@ export const appSettings: SettingsFormField[] = [
 
                     const disallowed = ["reddit.com", "redd.it"];
 
-                    const badItems = items.filter(x => disallowed.includes(x) || disallowed.some(item => x.endsWith(`.${item}`)));
+                    const badItems = items.filter(x => disallowed.includes(x) || disallowed.some(item => x.endsWith(`.${item}`)) || !x.includes("."));
 
                     if (badItems.length > 0) {
                         return `Invalid domains in list: ${badItems.join(", ")}`;
@@ -165,10 +195,29 @@ export const appSettings: SettingsFormField[] = [
                 },
             },
             {
+                type: "number",
+                name: AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs,
+                label: "Exempt accounts with below this much combined karma in problematic subs",
+                helpText: "If this option is selected, users with low karma in problematic subs will be ignored. Set to zero to disable this check.",
+                defaultValue: 0,
+                onValidate: ({ value }) => {
+                    if (value && value < 0) {
+                        return "Exempt account karma must be at least 0";
+                    }
+                },
+            },
+            {
                 type: "boolean",
                 name: AppSetting.CheckSocialLinks,
                 label: "Check social links",
                 helpText: "User fails checks if they have any domain matches in their Social Links on their profile.",
+                defaultValue: false,
+            },
+            {
+                type: "boolean",
+                name: AppSetting.CheckBioTextForLinks,
+                label: "Check bio text for links",
+                helpText: "User fails checks if they have any domain matches in their bio text.",
                 defaultValue: false,
             },
             {
@@ -189,6 +238,38 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.FlairWhitelist,
                 label: "Ignore users with these flairs",
                 helpText: "A comma-separated list of user flairs that exempt users from checks. Case insensitive.",
+            },
+            {
+                type: "string",
+                name: AppSetting.FlairCSSClassWhitelist,
+                label: "Ignore users with these flair CSS classes",
+                helpText: "A comma-separated list of user flair CSS classes that exempt users from checks. Case insensitive.",
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountOlderThanDays,
+                label: "Exempt accounts older than this many days",
+                helpText: "If an account is older than this many days, it will be exempt from checks. If zero, no accounts will be exempt.",
+                defaultValue: 0,
+                onValidate: ({ value }) => {
+                    if (value && value < 0) {
+                        return "Exempt account age must be at least 0";
+                    }
+                },
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountWithThisLinkKarma,
+                label: "Exempt accounts with this much post karma",
+                helpText: "If an account has more post karma than this, it will be exempt from checks. If zero, no accounts will be exempt based on post karma.",
+                defaultValue: 0,
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountWithThisCommentKarma,
+                label: "Exempt accounts with this much comment karma",
+                helpText: "If an account has more comment karma than this, it will be exempt from checks. If zero, no accounts will be exempt based on comment karma.",
+                defaultValue: 0,
             },
         ],
     },
@@ -306,6 +387,18 @@ export const appSettings: SettingsFormField[] = [
                         label: "Sticky reply comment",
                         helpText: "Works on posts only. Replies to comments cannot be stickied",
                     },
+                    {
+                        type: "number",
+                        name: AppSetting.NumberOfRepliesToMake,
+                        label: "Number of replies to make",
+                        helpText: "The number of replies to make to the user's content. If zero, there is no limit to the number of replies.",
+                        defaultValue: 0,
+                        onValidate: ({ value }) => {
+                            if (value === undefined || value < 0) {
+                                return "Number of replies must be at least 0.";
+                            }
+                        },
+                    },
                 ],
             },
             {
@@ -383,6 +476,30 @@ export const appSettings: SettingsFormField[] = [
                         label: "Template for mod note",
                         helpText: "Placeholders supported: {{sublist}}, {{domainlist}}.",
                         defaultValue: "User has history in: {{sublist}}",
+                    },
+                ],
+            },
+            {
+                type: "group",
+                label: "Alert by Discord or Slack",
+                fields: [
+                    {
+                        type: "string",
+                        name: AppSetting.DiscordOrSlackWebhook,
+                        label: "Discord/Slack Webhook URL",
+                        onValidate: ({ value }) => {
+                            const webhookRegex = /^https:\/\/(?:discord(?:app)?\.com\/api\/webhooks\/|hooks\.slack\.com\/services)/;
+                            if (value && !webhookRegex.test(value)) {
+                                return "Please enter a valid Discord or Slack webhook URL";
+                            }
+                        },
+                    },
+                    {
+                        type: "boolean",
+                        name: AppSetting.DiscordSuppressEmbeds,
+                        label: "Suppress Embeds (Discord only)",
+                        helpText: "Controls whether Discord will display embeds with alerts. Turn this on to reduce clutter. Has no effect on Slack webhooks.",
+                        defaultValue: false,
                     },
                 ],
             },

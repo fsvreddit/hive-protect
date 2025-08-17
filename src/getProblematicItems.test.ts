@@ -59,20 +59,12 @@ test("Subdomain not in list", () => {
     expect(isDomainInList(input, domains)).toBeFalsy();
 });
 
-test("Global wildcard should match everything", () => {
-    const input = "lucid.substack.com";
-    const domains: Domain[] = [
-        { domain: "*", wildcard: false },
-    ];
-
-    expect(isDomainInList(input, domains)).toBeTruthy();
-});
-
 test("Multi-subreddit matches", () => {
     const input: BadSubItem[] = [
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarma4U",
@@ -83,6 +75,7 @@ test("Multi-subreddit matches", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
@@ -108,6 +101,7 @@ test("Multi-subreddit matches with domains", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarma4U",
@@ -118,6 +112,7 @@ test("Multi-subreddit matches with domains", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
@@ -128,6 +123,7 @@ test("Multi-subreddit matches with domains", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
@@ -157,6 +153,7 @@ test("Domains only", () => {
                 permalink: "",
                 url: "",
                 subredditName: "AskReddit",
+                score: 10,
             } as MockSubItem,
             foundViaSubreddit: false,
             foundViaDomain: true,
@@ -167,6 +164,7 @@ test("Domains only", () => {
                 permalink: "",
                 url: "",
                 subredditName: "AskReddit",
+                score: 10,
             } as MockSubItem,
             foundViaSubreddit: false,
             foundViaDomain: true,
@@ -177,6 +175,7 @@ test("Domains only", () => {
                 permalink: "",
                 url: "",
                 subredditName: "AskReddit",
+                score: 10,
             } as MockSubItem,
             foundViaSubreddit: false,
             foundViaDomain: true,

@@ -1,10 +1,12 @@
 import { Comment, GetUserOverviewOptions, Post, TriggerContext, User } from "@devvit/public-api";
-import { uniq } from "lodash";
+import { sum, uniq } from "lodash";
 import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
 import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
 import { addHours, subDays } from "date-fns";
+import { getUserExtended } from "./extendedDevvit.js";
+import RegexEscape from "regex-escape";
 
 export const CACHE_DURATION_HOURS = 12;
 
@@ -31,7 +33,7 @@ export async function lastCheckResult (context: TriggerContext, userName: string
     return JSON.parse(recentCheckValue) as ProblematicSubsResult;
 }
 
-async function previousBanDate (context: TriggerContext, subredditName: string, userName: string): Promise<Date | undefined> {
+async function previousBanDate (context: TriggerContext, userName: string): Promise<Date | undefined> {
     const redisKey = `participation-prevbanned-${userName}`;
     const previousBanDateAsString = await context.redis.get(redisKey);
     if (!previousBanDateAsString) {
@@ -43,6 +45,7 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
 
 export interface MockSubItem {
     createdAt: Date;
+    score: number;
     subredditName: string;
     url: string;
     permalink: string;
@@ -87,7 +90,7 @@ export interface Domain {
 }
 
 export function isDomainInList (domain: string, domainList: Domain[]): boolean {
-    return domainList.some(item => domain === item.domain || item.domain === "*" || (item.wildcard && domain.endsWith(`.${item.domain}`)));
+    return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
 export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
@@ -196,6 +199,31 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     }
 
+    if (settings[AppSetting.CheckBioTextForLinks] && domainList.length > 0) {
+        const userExtended = await getUserExtended(userName, context);
+        const userBio = userExtended?.userDescription;
+        console.log(userBio);
+        if (userBio) {
+            for (const domain of domainList) {
+                let regex: RegExp;
+                if (domain.wildcard) {
+                    regex = new RegExp(`\\b(?:https://)?(?:\\w+.)*(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
+                } else {
+                    regex = new RegExp(`\\b(?:https://)?(?:www.)?(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
+                }
+                console.log(regex);
+                const matches = userBio.match(regex);
+                if (!matches) {
+                    continue;
+                }
+
+                socialURLs.push(matches[0]);
+                matchingSocialLinksDomains.push(matches[1]);
+            }
+        }
+        hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
+    }
+
     let failsChecks: boolean | undefined;
     let userBannable = false;
 
@@ -208,7 +236,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         if (failsChecks) {
             // Over threshold, but user may have been previously banned.
             console.log("User is over the ban threshold. Checking for previous bans.");
-            const previousBan = await previousBanDate(context, subredditName, userName);
+            const previousBan = await previousBanDate(context, userName);
             if (previousBan) {
                 console.log(`User was previously banned at ${previousBan.toISOString()}`);
                 const postBanBehaviour = (settings[AppSetting.BehaviourIfPrevBan] as string[] | undefined ?? [PrevBanBehaviour.NeverReBan])[0] as PrevBanBehaviour;
@@ -235,6 +263,15 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     } else {
         failsChecks = false;
+    }
+
+    const badSubKarmaLimit = settings[AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs] as number | undefined ?? 0;
+    if (badSubItems.length > 0 && badSubKarmaLimit > 0) {
+        const badSubKarma = sum(badSubItems.map(item => item.item.score));
+        if (badSubKarma < badSubKarmaLimit) {
+            console.log(`User ${userName} has ${badSubKarma} karma in problematic subs, below limit of ${badSubKarmaLimit}.`);
+            failsChecks = false;
+        }
     }
 
     const badPostCount = badSubItems.filter(item => item.item instanceof Post).length;

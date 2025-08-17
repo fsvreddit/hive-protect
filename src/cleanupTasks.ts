@@ -1,4 +1,4 @@
-import { TriggerContext, User, ZMember } from "@devvit/public-api";
+import { JobContext, TriggerContext, User, ZMember } from "@devvit/public-api";
 import { addDays, addMinutes, addSeconds } from "date-fns";
 import { APPROVALS_KEY } from "./handleContentCreation.js";
 import { compact, uniq } from "lodash";
@@ -6,11 +6,11 @@ import { compact, uniq } from "lodash";
 export const CLEANUP_LOG_KEY = "cleanupStore";
 const DAYS_BETWEEN_CHECKS = 28;
 
-export async function setCleanupForUser (username: string, context: TriggerContext) {
+export async function setCleanupForUser (username: string, context: TriggerContext | JobContext) {
     await context.redis.zAdd(CLEANUP_LOG_KEY, { member: username, score: addDays(new Date(), DAYS_BETWEEN_CHECKS).getTime() });
 }
 
-async function userActive (username: string, context: TriggerContext): Promise<boolean> {
+async function userActive (username: string, context: JobContext): Promise<boolean> {
     let user: User | undefined;
     try {
         user = await context.reddit.getUserByUsername(username);
@@ -18,7 +18,19 @@ async function userActive (username: string, context: TriggerContext): Promise<b
         //
     }
 
-    return user !== undefined;
+    if (!user) {
+        try {
+            await context.reddit.getModNotes({
+                subreddit: context.subredditName ?? await context.reddit.getCurrentSubredditName(),
+                user: username,
+            }).all();
+        } catch {
+            // If mod notes retrieval fails, we assume the user is deleted. Otherwise suspended.
+            return false;
+        }
+    }
+
+    return true;
 }
 
 interface UserActive {
@@ -26,7 +38,7 @@ interface UserActive {
     isActive: boolean;
 }
 
-export async function cleanupDeletedAccounts (_: unknown, context: TriggerContext) {
+export async function cleanupDeletedAccounts (_: unknown, context: JobContext) {
     console.log("Cleanup: Starting cleanup job");
     const items = await context.redis.zRange(CLEANUP_LOG_KEY, 0, new Date().getTime(), { by: "score" });
     if (items.length === 0) {
@@ -71,6 +83,8 @@ export async function cleanupDeletedAccounts (_: unknown, context: TriggerContex
         await Promise.all(deletedUsers.map(user => context.redis.del(`participation-prevbanned-${user}`)));
         await context.redis.zRem(CLEANUP_LOG_KEY, deletedUsers);
         await context.redis.del(...deletedUsers.map(user => `modNoteAdded:${user}`));
+        await context.redis.del(...deletedUsers.map(user => `repliesMade:${user}`));
+        await context.redis.del(...deletedUsers.map(user => `userExempt:${user}`));
     }
 
     // If there were more users in this run than we could process, schedule another run immediately.
