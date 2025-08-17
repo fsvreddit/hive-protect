@@ -63,6 +63,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 
 ### 1.11.0
 
+* Add option to check user bios for domains
 * Add option to exempt users based on flair CSS class
 * Add option to exempt users based on account age and karma
 * Add option to exempt users with low karma in detected subreddits

@@ -15,10 +15,12 @@
     "@types/json2md": "^1.5.4",
     "@types/lodash": "^4.14.202",
     "@types/pluralize": "^0.0.33",
+    "@types/regex-escape": "^3.4.1",
     "date-fns": "^4.0.0",
     "json2md": "^2.0.3",
     "lodash": "^4.17.21",
     "pluralize": "^8.0.0",
+    "regex-escape": "^3.4.11",
     "toolbox-devvit": "^0.3.2"
   },
   "devDependencies": {

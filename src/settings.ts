@@ -14,6 +14,7 @@ export enum AppSetting {
 
     DaysToMonitor = "daystomonitor",
     CheckSocialLinks = "checkSocialLinks",
+    CheckBioTextForLinks = "checkBioTextForLinks",
 
     // Exemption options
     ExemptApprovedUser = "exemptapproveduser",
@@ -127,7 +128,7 @@ export const appSettings: SettingsFormField[] = [
             {
                 type: "paragraph",
                 name: AppSetting.Domains,
-                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com. Use * to match everything.",
+                label: "Enter a comma-separated list of domains to watch e.g. onlyfans.com, fansly.com. Omit leading 'www.'. Supports wildcards e.g. *.substack.com.",
                 onValidate: ({ value }) => {
                     if (!value) {
                         return;
@@ -139,7 +140,7 @@ export const appSettings: SettingsFormField[] = [
 
                     const disallowed = ["reddit.com", "redd.it"];
 
-                    const badItems = items.filter(x => disallowed.includes(x) || disallowed.some(item => x.endsWith(`.${item}`)));
+                    const badItems = items.filter(x => disallowed.includes(x) || disallowed.some(item => x.endsWith(`.${item}`) || !item.includes(".")));
 
                     if (badItems.length > 0) {
                         return `Invalid domains in list: ${badItems.join(", ")}`;
@@ -210,6 +211,13 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.CheckSocialLinks,
                 label: "Check social links",
                 helpText: "User fails checks if they have any domain matches in their Social Links on their profile.",
+                defaultValue: false,
+            },
+            {
+                type: "boolean",
+                name: AppSetting.CheckBioTextForLinks,
+                label: "Check bio text for links",
+                helpText: "User fails checks if they have any domain matches in their bio text.",
                 defaultValue: false,
             },
             {
@@ -386,7 +394,7 @@ export const appSettings: SettingsFormField[] = [
                         helpText: "The number of replies to make to the user's content. If zero, there is no limit to the number of replies.",
                         defaultValue: 0,
                         onValidate: ({ value }) => {
-                            if (!value || value < 0) {
+                            if (value === undefined || value < 0) {
                                 return "Number of replies must be at least 0.";
                             }
                         },

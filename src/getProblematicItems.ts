@@ -5,6 +5,8 @@ import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from 
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
 import { addHours, subDays } from "date-fns";
+import { getUserExtended } from "./extendedDevvit.js";
+import RegexEscape from "regex-escape";
 
 export const CACHE_DURATION_HOURS = 12;
 
@@ -195,6 +197,31 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
             hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
         }
+    }
+
+    if (settings[AppSetting.CheckBioTextForLinks] && domainList.length > 0) {
+        const userExtended = await getUserExtended(userName, context);
+        const userBio = userExtended?.userDescription;
+        console.log(userBio);
+        if (userBio) {
+            for (const domain of domainList) {
+                let regex: RegExp;
+                if (domain.wildcard) {
+                    regex = new RegExp(`\\b(?:https://)?(?:\\w+.)*(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
+                } else {
+                    regex = new RegExp(`\\b(?:https://)?(?:www.)?(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
+                }
+                console.log(regex);
+                const matches = userBio.match(regex);
+                if (!matches) {
+                    continue;
+                }
+
+                socialURLs.push(matches[0]);
+                matchingSocialLinksDomains.push(matches[1]);
+            }
+        }
+        hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
     }
 
     let failsChecks: boolean | undefined;
