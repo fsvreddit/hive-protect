@@ -67,8 +67,10 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 * Add option to exempt users based on account age and karma
 * Add option to exempt users with low karma in detected subreddits
 * Add ability to send alerts to Slack/Discord when a user is flagged
+* Add ability to set limit on the number of replies made to a user (e.g. if you only want to make one or two)
 * Remove extra * characters on modmail messages
 * Native ban notes now use "Bot Ban" type if ban option is enabled
+* Remove global wildcard domain feature
 
 ### 1.10.27
 

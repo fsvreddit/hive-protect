@@ -41,6 +41,7 @@ export enum AppSetting {
     ReplyTemplate = "removalreasontemplate",
     LockReply = "lockreply",
     StickyReply = "stickyreply",
+    NumberOfRepliesToMake = "numberOfRepliesToMake",
 
     // Report options
     ReportEnabled = "reportenabled",
@@ -377,6 +378,18 @@ export const appSettings: SettingsFormField[] = [
                         name: AppSetting.StickyReply,
                         label: "Sticky reply comment",
                         helpText: "Works on posts only. Replies to comments cannot be stickied",
+                    },
+                    {
+                        type: "number",
+                        name: AppSetting.NumberOfRepliesToMake,
+                        label: "Number of replies to make",
+                        helpText: "The number of replies to make to the user's content. If zero, there is no limit to the number of replies.",
+                        defaultValue: 0,
+                        onValidate: ({ value }) => {
+                            if (!value || value < 0) {
+                                return "Number of replies must be at least 0.";
+                            }
+                        },
                     },
                 ],
             },

@@ -83,6 +83,7 @@ export async function cleanupDeletedAccounts (_: unknown, context: JobContext) {
         await Promise.all(deletedUsers.map(user => context.redis.del(`participation-prevbanned-${user}`)));
         await context.redis.zRem(CLEANUP_LOG_KEY, deletedUsers);
         await context.redis.del(...deletedUsers.map(user => `modNoteAdded:${user}`));
+        await context.redis.del(...deletedUsers.map(user => `repliesMade:${user}`));
     }
 
     // If there were more users in this run than we could process, schedule another run immediately.

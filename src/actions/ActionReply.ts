@@ -3,6 +3,7 @@ import { replaceAll } from "../utility.js";
 import { isLinkId } from "@devvit/shared-types/tid.js";
 import pluralize from "pluralize";
 import { ActionBase } from "./_ActionBase.js";
+import { setCleanupForUser } from "../cleanupTasks.js";
 
 export class ActionReply extends ActionBase {
     public async execute (): Promise<void> {
@@ -10,6 +11,24 @@ export class ActionReply extends ActionBase {
         if (!replyMessage) {
             return;
         }
+
+        const maxReplyCount = this.settings[AppSetting.NumberOfRepliesToMake] as number | undefined ?? 0;
+        const redisKey = `repliesMade:${this.target.authorName}`;
+
+        if (maxReplyCount > 0) {
+            const repliesMadeVal = await this.context.redis.get(redisKey);
+
+            if (repliesMadeVal) {
+                const repliesMade = parseInt(repliesMadeVal, 10);
+                if (repliesMade >= maxReplyCount) {
+                    console.log(`Max replies made for ${this.target.authorName}. Not replying.`);
+                    return;
+                }
+            }
+        }
+
+        await this.context.redis.incrBy(redisKey, 1);
+        await setCleanupForUser(this.target.authorName, this.context);
 
         replyMessage = replaceAll(replyMessage, "{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
         replyMessage = replaceAll(replyMessage, "{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
