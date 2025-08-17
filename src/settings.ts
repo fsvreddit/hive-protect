@@ -56,6 +56,10 @@ export enum AppSetting {
     ModNoteType = "modNoteType",
     ModNoteTemplate = "modNoteTemplate",
 
+    // Alert by Discord/Slack options
+    DiscordOrSlackWebhook = "discordOrSlackWebhook",
+    DiscordSuppressEmbeds = "discordSuppressEmbeds",
+
     // Block Checker
     AntiBlockCheckerEnable = "antiBlockCheckerEnabled",
 
@@ -451,6 +455,30 @@ export const appSettings: SettingsFormField[] = [
                         label: "Template for mod note",
                         helpText: "Placeholders supported: {{sublist}}, {{domainlist}}.",
                         defaultValue: "User has history in: {{sublist}}",
+                    },
+                ],
+            },
+            {
+                type: "group",
+                label: "Alert by Discord or Slack",
+                fields: [
+                    {
+                        type: "string",
+                        name: AppSetting.DiscordOrSlackWebhook,
+                        label: "Discord/Slack Webhook URL",
+                        onValidate: ({ value }) => {
+                            const webhookRegex = /^https:\/\/(?:discord(?:app)?\.com\/api\/webhooks\/|hooks\.slack\.com\/services)/;
+                            if (value && !webhookRegex.test(value)) {
+                                return "Please enter a valid Discord or Slack webhook URL";
+                            }
+                        },
+                    },
+                    {
+                        type: "boolean",
+                        name: AppSetting.DiscordSuppressEmbeds,
+                        label: "Suppress Embeds (Discord only)",
+                        helpText: "Controls whether Discord will display embeds with alerts. Turn this on to reduce clutter. Has no effect on Slack webhooks.",
+                        defaultValue: false,
                     },
                 ],
             },

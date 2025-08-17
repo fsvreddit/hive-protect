@@ -36,6 +36,10 @@ Devvit.addSchedulerJob({
 Devvit.configure({
     redditAPI: true,
     redis: true,
+    http: {
+        domains: ["hooks.slack.com", "discord.com", "discordapp.com"],
+        enabled: true,
+    },
 });
 
 export default Devvit;

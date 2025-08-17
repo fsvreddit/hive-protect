@@ -9,6 +9,7 @@ import { banUser } from "./actions/ban.js";
 import { AppSetting } from "./settings.js";
 import { addModNote } from "./actions/modNote.js";
 import { subDays } from "date-fns";
+import { sendDiscordOrSlackNotification } from "./actions/discordOrSlackNotification.js";
 
 export async function actionUser (userName: string, targetId: string | undefined, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
@@ -110,5 +111,6 @@ export async function actionUser (userName: string, targetId: string | undefined
         replyToContent(target, problematicItemsResult, settings, context),
         sendModmail(target, problematicItemsResult, settings, context),
         addModNote(target, problematicItemsResult, settings, context),
+        sendDiscordOrSlackNotification(target, problematicItemsResult, settings),
     );
 }
