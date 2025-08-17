@@ -4,6 +4,7 @@ import { getPostOrCommentById } from "./utility.js";
 import { AppSetting } from "./settings.js";
 import { subDays } from "date-fns";
 import { ALL_ACTIONS } from "./actions/_AllActions.js";
+import { userIsExemptByMenu } from "./exemptUserFeature.js";
 
 export async function actionUser (userName: string, targetId: string, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
@@ -22,6 +23,11 @@ export async function actionUser (userName: string, targetId: string, problemati
 
     if (user.isAdmin) {
         console.log(`${userName} is an admin! No action will be taken.`);
+        return;
+    }
+
+    if (await userIsExemptByMenu(userName, context)) {
+        console.log(`User ${userName} is exempt from actions.`);
         return;
     }
 
