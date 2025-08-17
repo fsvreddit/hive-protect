@@ -1,17 +1,11 @@
-import { Post, Comment, TriggerContext, User, UserFlair } from "@devvit/public-api";
+import { TriggerContext, User, UserFlair } from "@devvit/public-api";
 import { ProblematicSubsResult } from "./getProblematicItems.js";
 import { getPostOrCommentById } from "./utility.js";
-import { reportContent } from "./actions/report.js";
-import { removeContent } from "./actions/remove.js";
-import { sendModmail } from "./actions/modmail.js";
-import { replyToContent } from "./actions/reply.js";
-import { banUser } from "./actions/ban.js";
 import { AppSetting } from "./settings.js";
-import { addModNote } from "./actions/modNote.js";
 import { subDays } from "date-fns";
-import { sendDiscordOrSlackNotification } from "./actions/discordOrSlackNotification.js";
+import { ALL_ACTIONS } from "./actions/_AllActions.js";
 
-export async function actionUser (userName: string, targetId: string | undefined, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
+export async function actionUser (userName: string, targetId: string, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
 
     let user: User | undefined;
@@ -22,7 +16,7 @@ export async function actionUser (userName: string, targetId: string | undefined
     }
 
     if (!user) {
-        console.log("User object is not defined. This could indicate a shadowbanned user on second check.");
+        console.log("User object is not defined. This could indicate a shadowbanned user.");
         return;
     }
 
@@ -74,43 +68,16 @@ export async function actionUser (userName: string, targetId: string | undefined
         return;
     }
 
-    const banEnabled = settings[AppSetting.BanEnabled] as boolean | undefined ?? true;
+    const target = await getPostOrCommentById(targetId, context);
 
     const actions: Promise<void>[] = [];
 
-    if (banEnabled && problematicItemsResult.userBannable) {
-        actions.push(banUser(context, subredditName, userName, problematicItemsResult));
+    for (const Action of ALL_ACTIONS) {
+        const actionInstance = new Action(target, problematicItemsResult, settings, context);
+        if (actionInstance.isModuleEnabled()) {
+            actions.push(actionInstance.execute());
+        }
     }
 
-    if (!settings[AppSetting.ApplyBanBehavioursToOtherActions] && !problematicItemsResult.userBannable) {
-        console.log("Other action options are turned on, but user was previously unbanned. Skipping");
-        return;
-    }
-
-    let target: Post | Comment | undefined;
-    if (targetId) {
-        target = await getPostOrCommentById(targetId, context);
-    } else {
-        // Get the most recent user entry from the subreddit.
-        const userContent = await context.reddit.getCommentsAndPostsByUser({
-            username: userName,
-            sort: "new",
-        }).all();
-
-        target = userContent.find(item => item.subredditName === context.subredditName);
-    }
-
-    if (!target) {
-        return;
-    }
-
-    // Perform actions!
-    actions.push(
-        reportContent(target, problematicItemsResult, settings, context),
-        removeContent(target, settings, context),
-        replyToContent(target, problematicItemsResult, settings, context),
-        sendModmail(target, problematicItemsResult, settings, context),
-        addModNote(target, problematicItemsResult, settings, context),
-        sendDiscordOrSlackNotification(target, problematicItemsResult, settings),
-    );
+    await Promise.all(actions);
 }

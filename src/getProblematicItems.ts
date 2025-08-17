@@ -31,7 +31,7 @@ export async function lastCheckResult (context: TriggerContext, userName: string
     return JSON.parse(recentCheckValue) as ProblematicSubsResult;
 }
 
-async function previousBanDate (context: TriggerContext, subredditName: string, userName: string): Promise<Date | undefined> {
+async function previousBanDate (context: TriggerContext, userName: string): Promise<Date | undefined> {
     const redisKey = `participation-prevbanned-${userName}`;
     const previousBanDateAsString = await context.redis.get(redisKey);
     if (!previousBanDateAsString) {
@@ -209,7 +209,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         if (failsChecks) {
             // Over threshold, but user may have been previously banned.
             console.log("User is over the ban threshold. Checking for previous bans.");
-            const previousBan = await previousBanDate(context, subredditName, userName);
+            const previousBan = await previousBanDate(context, userName);
             if (previousBan) {
                 console.log(`User was previously banned at ${previousBan.toISOString()}`);
                 const postBanBehaviour = (settings[AppSetting.BehaviourIfPrevBan] as string[] | undefined ?? [PrevBanBehaviour.NeverReBan])[0] as PrevBanBehaviour;

@@ -5,9 +5,6 @@ import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./setti
 import { CLEANUP_JOB } from "./constants.js";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
-    // Clean up old redis key, no longer used.
-    await context.redis.del("subredditName");
-
     // Clear down scheduled tasks and re-add.
     const existingJobs = await context.scheduler.listJobs();
     await Promise.all(existingJobs.map(job => context.scheduler.cancelJob(job.id)));
@@ -33,6 +30,7 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     await oneOffCheckForOversizeSettings(context);
 
     // Remove unused Redis keys.
+    await context.redis.del("subredditName");
     await context.redis.del("appName");
     await context.redis.del("secondCheckQueue");
 }

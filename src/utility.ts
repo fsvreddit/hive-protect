@@ -2,6 +2,10 @@ import { Comment, Post, TriggerContext } from "@devvit/public-api";
 import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 
 export async function isModerator (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
+    if (username === "AutoModerator" || username === `${subredditName}-modTeam`) {
+        return true;
+    }
+
     try {
         const filteredModeratorList = await context.reddit.getModerators({ subredditName, username }).all();
         return filteredModeratorList.length > 0;
