@@ -8,6 +8,7 @@ import { replyToContent } from "./actions/reply.js";
 import { banUser } from "./actions/ban.js";
 import { AppSetting } from "./settings.js";
 import { addModNote } from "./actions/modNote.js";
+import { subDays } from "date-fns";
 
 export async function actionUser (userName: string, targetId: string | undefined, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
@@ -52,6 +53,24 @@ export async function actionUser (userName: string, targetId: string | undefined
             console.log(`User's flair CSS class (${userFlair.flairCssClass}) is whitelisted. No action will be taken.`);
             return;
         }
+    }
+
+    const exemptAccountOlderThanDays = settings[AppSetting.ExemptAccountOlderThanDays] as number | undefined;
+    if (exemptAccountOlderThanDays && user.createdAt < subDays(new Date(), exemptAccountOlderThanDays)) {
+        console.log(`User is exempt from checks because account is older than ${exemptAccountOlderThanDays} days.`);
+        return;
+    }
+
+    const exemptAccountWithThisLinkKarma = settings[AppSetting.ExemptAccountWithThisLinkKarma] as number | undefined;
+    if (exemptAccountWithThisLinkKarma && user.linkKarma > exemptAccountWithThisLinkKarma) {
+        console.log(`User is exempt from checks because link karma is greater than ${exemptAccountWithThisLinkKarma}.`);
+        return;
+    }
+
+    const exemptAccountWithThisCommentKarma = settings[AppSetting.ExemptAccountWithThisCommentKarma] as number | undefined;
+    if (exemptAccountWithThisCommentKarma && user.commentKarma > exemptAccountWithThisCommentKarma) {
+        console.log(`User is exempt from checks because comment karma is greater than ${exemptAccountWithThisCommentKarma}.`);
+        return;
     }
 
     const banEnabled = settings[AppSetting.BanEnabled] as boolean | undefined ?? true;

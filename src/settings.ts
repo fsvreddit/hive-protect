@@ -2,6 +2,7 @@ import { SettingsFormField, SettingsFormFieldValidatorEvent } from "@devvit/publ
 import { trimLeadingWWW } from "./utility.js";
 
 export enum AppSetting {
+    // Detection options
     Subreddits = "subreddits",
     NumberOfSubredditsThatMustMatch = "numSubredditsToMatch",
     Domains = "domains",
@@ -11,31 +12,51 @@ export enum AppSetting {
     CommentCount = "commentcount",
     DaysToMonitor = "daystomonitor",
     CheckSocialLinks = "checkSocialLinks",
+
+    // Exemption options
     ExemptApprovedUser = "exemptapproveduser",
     UserWhitelist = "userWhitelist",
     FlairWhitelist = "flairWhitelist",
     FlairCSSClassWhitelist = "flairCSSClassWhitelist",
+    ExemptAccountOlderThanDays = "exemptAccountOlderThanDays",
+    ExemptAccountWithThisLinkKarma = "exemptAccountWithThisLinkKarma",
+    ExemptAccountWithThisCommentKarma = "exemptAccountWithThisCommentKarma",
+
+    // Ban options
     BanEnabled = "banenabled",
     BehaviourIfPrevBan = "behaviourifprevban",
     ApplyBanBehavioursToOtherActions = "banBehaviourForAllActions",
     BanMessage = "banmessage",
     BanNote = "bannote",
     BanDuration = "banduration",
+
+    // Removal options
     RemoveEnabled = "removeenabled",
     RemoveAsSpam = "removeAsSpam",
     PurgeContent = "purgeContent",
+
+    // Reply options
     ReplyTemplate = "removalreasontemplate",
     LockReply = "lockreply",
     StickyReply = "stickyreply",
+
+    // Report options
     ReportEnabled = "reportenabled",
     ReportTemplate = "reporttemplate",
     ReportNumber = "reportnumber",
+
+    // Modmail options
     ModmailEnabled = "modmailEnabled",
     ModmailNumber = "modmailNumber",
+
+    // Mod note options
     ModNoteEnabled = "modNoteEnabled",
     ModNoteType = "modNoteType",
     ModNoteTemplate = "modNoteTemplate",
+
+    // Block Checker
     AntiBlockCheckerEnable = "antiBlockCheckerEnabled",
+
     // App scoped settings
     SitewideBannedDomains = "sitewideBannedDomains",
 }
@@ -196,6 +217,32 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.FlairCSSClassWhitelist,
                 label: "Ignore users with these flair CSS classes",
                 helpText: "A comma-separated list of user flair CSS classes that exempt users from checks. Case insensitive.",
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountOlderThanDays,
+                label: "Exempt accounts older than this many days",
+                helpText: "If an account is older than this many days, it will be exempt from checks. If zero, no accounts will be exempt.",
+                defaultValue: 0,
+                onValidate: ({ value }) => {
+                    if (value && value < 0) {
+                        return "Exempt account age must be at least 0";
+                    }
+                },
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountWithThisLinkKarma,
+                label: "Exempt accounts with this much post karma",
+                helpText: "If an account has more post karma than this, it will be exempt from checks. If zero, no accounts will be exempt based on post karma.",
+                defaultValue: 0,
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountWithThisCommentKarma,
+                label: "Exempt accounts with this much comment karma",
+                helpText: "If an account has more comment karma than this, it will be exempt from checks. If zero, no accounts will be exempt based on comment karma.",
+                defaultValue: 0,
             },
         ],
     },
