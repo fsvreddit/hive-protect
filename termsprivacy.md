@@ -1,4 +1,4 @@
-# Devvit Latency and Uptime Monitor
+# Hive Protector
 
 ## Privacy Policy
 
