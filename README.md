@@ -61,6 +61,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### 1.11.0
+
+* Add option to exempt users based on flair CSS class
+
 ### 1.10.27
 
 * Redact domains in comment reply output that are known to be banned sitewide, preventing removals of messages by Admin
