@@ -1,4 +1,4 @@
-import { Comment, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
+import { Comment, Post, SettingsValues, TriggerContext, UserNoteLabel } from "@devvit/public-api";
 import { AppSetting } from "../settings.js";
 import { replaceAll } from "../utility.js";
 import { ProblematicSubsResult } from "../getProblematicItems.js";
@@ -27,7 +27,8 @@ export async function addModNote (target: Post | Comment, problematicItemsResult
 
     const promises: Promise<unknown>[] = [];
     if (modNoteType === "native" || modNoteType === "both") {
-        promises.push(addNativeNote(target, modNote, context));
+        const label: UserNoteLabel = settings[AppSetting.BanEnabled] ? "BOT_BAN" : "ABUSE_WARNING";
+        promises.push(addNativeNote(target, modNote, label, context));
     }
 
     if (modNoteType === "toolbox" || modNoteType === "both") {
@@ -39,13 +40,13 @@ export async function addModNote (target: Post | Comment, problematicItemsResult
     await Promise.all(promises);
 }
 
-async function addNativeNote (target: Post | Comment, note: string, context: TriggerContext) {
+async function addNativeNote (target: Post | Comment, note: string, type: UserNoteLabel, context: TriggerContext) {
     const subredditName = await context.reddit.getCurrentSubredditName();
     await context.reddit.addModNote({
         subreddit: subredditName,
         note,
         user: target.authorName,
-        label: "ABUSE_WARNING",
+        label: type,
         redditId: target.id,
     });
 }

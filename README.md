@@ -64,6 +64,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 ### 1.11.0
 
 * Add option to exempt users based on flair CSS class
+* Native ban notes now use "Bot Ban" label if ban option is enabled
 
 ### 1.10.27
 
