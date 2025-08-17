@@ -61,7 +61,7 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
-### 1.11.0
+### 1.11.1
 
 * Add option to check user bios for domains
 * Add option to exempt users based on flair CSS class

@@ -1,6 +1,6 @@
 # Change log for Hive Protector
 
-### 1.11.0
+### 1.11.1
 
 * Add option to check user bios for domains
 * Add option to exempt users based on flair CSS class

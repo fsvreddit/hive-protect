@@ -24,9 +24,9 @@ export class ActionWebhookNotification extends ActionBase {
 
         const kind = this.target instanceof Comment ? "comment" : "post";
         if (webhookUrl.includes("slack.com") || !suppressEmbeds) {
-            message += `User was caught after making [this ${kind}](${this.target.permalink}).`;
+            message += `User was caught after making [this ${kind}](https://www.reddit.com${this.target.permalink}).`;
         } else {
-            message += `User was caught after making [this ${kind}](<${this.target.permalink}>).`;
+            message += `User was caught after making [this ${kind}](<https://www.reddit.com${this.target.permalink}>).`;
         }
 
         let params;
