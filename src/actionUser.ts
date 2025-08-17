@@ -1,4 +1,4 @@
-import { Post, Comment, TriggerContext, User } from "@devvit/public-api";
+import { Post, Comment, TriggerContext, User, UserFlair } from "@devvit/public-api";
 import { ProblematicSubsResult } from "./getProblematicItems.js";
 import { getPostOrCommentById } from "./utility.js";
 import { reportContent } from "./actions/report.js";
@@ -32,11 +32,24 @@ export async function actionUser (userName: string, targetId: string | undefined
     const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
 
     const userFlairWhitelist = settings[AppSetting.FlairWhitelist] as string | undefined;
-    if (userFlairWhitelist) {
+    const userFlairCSSClassWhitelist = settings[AppSetting.FlairCSSClassWhitelist] as string | undefined;
+    let userFlair: UserFlair | undefined;
+    if (userFlairCSSClassWhitelist || userFlairCSSClassWhitelist) {
+        userFlair = await user.getUserFlairBySubreddit(subredditName);
+    }
+
+    if (userFlairWhitelist && userFlair) {
         const whitelistedFlairs = userFlairWhitelist.split(",").map(x => x.toLowerCase().trim());
-        const userFlair = await user.getUserFlairBySubreddit(subredditName);
-        if (userFlair?.flairText && whitelistedFlairs.includes(userFlair.flairText.toLowerCase())) {
+        if (userFlair.flairText && whitelistedFlairs.includes(userFlair.flairText.toLowerCase())) {
             console.log(`User's flair (${userFlair.flairText} is whitelisted. No action will be taken,`);
+            return;
+        }
+    }
+
+    if (userFlairCSSClassWhitelist && userFlair) {
+        const whitelistedFlairCSSClasses = userFlairCSSClassWhitelist.split(",").map(x => x.toLowerCase().trim());
+        if (userFlair.flairCssClass && whitelistedFlairCSSClasses.includes(userFlair.flairCssClass.toLowerCase())) {
+            console.log(`User's flair CSS class (${userFlair.flairCssClass}) is whitelisted. No action will be taken.`);
             return;
         }
     }
