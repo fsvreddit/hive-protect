@@ -140,7 +140,7 @@ export const appSettings: SettingsFormField[] = [
 
                     const disallowed = ["reddit.com", "redd.it"];
 
-                    const badItems = items.filter(x => disallowed.includes(x) || disallowed.some(item => x.endsWith(`.${item}`) || !item.includes(".")));
+                    const badItems = items.filter(x => disallowed.includes(x) || disallowed.some(item => x.endsWith(`.${item}`)) || !x.includes("."));
 
                     if (badItems.length > 0) {
                         return `Invalid domains in list: ${badItems.join(", ")}`;
