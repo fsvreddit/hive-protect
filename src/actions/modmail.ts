@@ -35,11 +35,11 @@ export async function sendModmail (target: Post | Comment, problematicItemsResul
 
     const bullets: string[] = [];
     if (problematicItemsResult.badSubs.length > 0) {
-        bullets.push(`* Problematic Subreddits found: ${problematicItemsResult.badSubs.join(", ")}`);
+        bullets.push(`Problematic Subreddits found: ${problematicItemsResult.badSubs.join(", ")}`);
     }
 
     if (problematicItemsResult.badDomains.length > 0) {
-        bullets.push(`* Problematic Domains found: ${problematicItemsResult.badDomains.join(", ")}`);
+        bullets.push(`Problematic Domains found: ${problematicItemsResult.badDomains.join(", ")}`);
     }
 
     if (bullets.length > 0) {
