@@ -1,5 +1,5 @@
 import { Comment, GetUserOverviewOptions, Post, TriggerContext, User } from "@devvit/public-api";
-import { uniq } from "lodash";
+import { sum, uniq } from "lodash";
 import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
 import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
@@ -43,6 +43,7 @@ async function previousBanDate (context: TriggerContext, subredditName: string, 
 
 export interface MockSubItem {
     createdAt: Date;
+    score: number;
     subredditName: string;
     url: string;
     permalink: string;
@@ -235,6 +236,15 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     } else {
         failsChecks = false;
+    }
+
+    const badSubKarmaLimit = settings[AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs] as number | undefined ?? 0;
+    if (badSubItems.length > 0 && badSubKarmaLimit > 0) {
+        const badSubKarma = sum(badSubItems.map(item => item.item.score));
+        if (badSubKarma < badSubKarmaLimit) {
+            console.log(`User ${userName} has ${badSubKarma} karma in problematic subs, below limit of ${badSubKarmaLimit}.`);
+            failsChecks = false;
+        }
     }
 
     const badPostCount = badSubItems.filter(item => item.item instanceof Post).length;

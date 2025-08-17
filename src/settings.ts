@@ -10,6 +10,8 @@ export enum AppSetting {
     CombinedItemCount = "itemcount",
     PostCount = "postcount",
     CommentCount = "commentcount",
+    ExemptAccountsWithLowKarmaInProblematicSubs = "exemptAccountsWithKarmaInProblematicSubs",
+
     DaysToMonitor = "daystomonitor",
     CheckSocialLinks = "checkSocialLinks",
 
@@ -183,6 +185,18 @@ export const appSettings: SettingsFormField[] = [
                 onValidate: ({ value }) => {
                     if (!value || value < 1) {
                         return "Days to monitor must be at least 1";
+                    }
+                },
+            },
+            {
+                type: "number",
+                name: AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs,
+                label: "Exempt accounts with below this much combined karma in problematic subs",
+                helpText: "If this option is selected, users with low karma in problematic subs will be ignored. Set to zero to disable this check.",
+                defaultValue: 0,
+                onValidate: ({ value }) => {
+                    if (value && value < 0) {
+                        return "Exempt account karma must be at least 0";
                     }
                 },
             },

@@ -73,6 +73,7 @@ test("Multi-subreddit matches", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarma4U",
@@ -83,6 +84,7 @@ test("Multi-subreddit matches", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
@@ -108,6 +110,7 @@ test("Multi-subreddit matches with domains", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarma4U",
@@ -118,6 +121,7 @@ test("Multi-subreddit matches with domains", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
@@ -128,6 +132,7 @@ test("Multi-subreddit matches with domains", () => {
         {
             item: {
                 createdAt: new Date(),
+                score: 10,
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
@@ -157,6 +162,7 @@ test("Domains only", () => {
                 permalink: "",
                 url: "",
                 subredditName: "AskReddit",
+                score: 10,
             } as MockSubItem,
             foundViaSubreddit: false,
             foundViaDomain: true,
@@ -167,6 +173,7 @@ test("Domains only", () => {
                 permalink: "",
                 url: "",
                 subredditName: "AskReddit",
+                score: 10,
             } as MockSubItem,
             foundViaSubreddit: false,
             foundViaDomain: true,
@@ -177,6 +184,7 @@ test("Domains only", () => {
                 permalink: "",
                 url: "",
                 subredditName: "AskReddit",
+                score: 10,
             } as MockSubItem,
             foundViaSubreddit: false,
             foundViaDomain: true,

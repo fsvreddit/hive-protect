@@ -65,6 +65,7 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 
 * Add option to exempt users based on flair CSS class
 * Add option to exempt users based on account age and karma
+* Add option to exempt users with low karma in detected subreddits
 * Native ban notes now use "Bot Ban" type if ban option is enabled
 
 ### 1.10.27
