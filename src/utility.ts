@@ -1,5 +1,5 @@
 import { Comment, Post, TriggerContext } from "@devvit/public-api";
-import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
+import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 
 export async function isModerator (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
     if (username === "AutoModerator" || username === `${subredditName}-modTeam`) {

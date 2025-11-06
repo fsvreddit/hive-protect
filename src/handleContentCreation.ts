@@ -1,6 +1,6 @@
 import { TriggerContext } from "@devvit/public-api";
 import { CommentSubmit, PostSubmit } from "@devvit/protos";
-import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
+import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { addDays, addHours } from "date-fns";
 import { getPostOrCommentById } from "./utility.js";
 import { AppSetting, ContentTypeToActOn } from "./settings.js";

@@ -1,6 +1,6 @@
 import { AppSetting } from "../settings.js";
 import { replaceAll } from "../utility.js";
-import { isLinkId } from "@devvit/shared-types/tid.js";
+import { isLinkId } from "@devvit/public-api/types/tid.js";
 import pluralize from "pluralize";
 import { ActionBase } from "./_ActionBase.js";
 import { setCleanupForUser } from "../cleanupTasks.js";
