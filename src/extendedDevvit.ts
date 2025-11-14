@@ -1,9 +1,8 @@
-import { TriggerContext } from "@devvit/public-api";
-import * as protos from "@devvit/protos";
+import { Metadata, TriggerContext } from "@devvit/public-api";
 import { UserAboutResponse } from "@devvit/protos/types/devvit/plugin/redditapi/users/users_msg.js";
 import { getExtendedDevvit } from "devvit-helpers";
 
-async function getRawUserData (username: string, metadata: protos.Metadata): Promise<UserAboutResponse | undefined> {
+async function getRawUserData (username: string, metadata: Metadata): Promise<UserAboutResponse | undefined> {
     try {
         return await getExtendedDevvit().redditAPIPlugins.Users.UserAbout({ username }, metadata);
     } catch {
