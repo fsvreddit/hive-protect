@@ -1,12 +1,13 @@
-import { Comment, GetUserOverviewOptions, Post, TriggerContext, User } from "@devvit/public-api";
+import { Comment, GetUserOverviewOptions, Post, TriggerContext } from "@devvit/public-api";
 import { sum, uniq } from "lodash";
 import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
-import { domainFromUrlString, isContributor, isModerator, trimLeadingWWW } from "./utility.js";
+import { domainFromUrlString, isModerator, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
 import { addHours, subDays } from "date-fns";
 import { getUserExtended } from "./extendedDevvit.js";
 import RegexEscape from "regex-escape";
+import { getUserSocialLinks, isContributor } from "devvit-helpers";
 
 export const CACHE_DURATION_HOURS = 12;
 
@@ -184,25 +185,15 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const matchingSocialLinksDomains: string[] = [];
     const socialURLs: string[] = [];
     if (settings[AppSetting.CheckSocialLinks] && domainList.length > 0) {
-        let user: User | undefined;
-        try {
-            user = await context.reddit.getUserByUsername(userName);
-        } catch {
-            //
-        }
-
-        if (user) {
-            const socialLinks = await user.getSocialLinks();
-            socialURLs.push(...socialLinks.map(link => link.outboundUrl));
-            matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
-            hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
-        }
+        const socialLinks = await getUserSocialLinks(userName, context.metadata);
+        socialURLs.push(...socialLinks.map(link => link.outboundUrl));
+        matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
+        hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
     }
 
     if (settings[AppSetting.CheckBioTextForLinks] && domainList.length > 0) {
         const userExtended = await getUserExtended(userName, context);
         const userBio = userExtended?.userDescription;
-        console.log(userBio);
         if (userBio) {
             for (const domain of domainList) {
                 let regex: RegExp;
@@ -211,7 +202,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                 } else {
                     regex = new RegExp(`\\b(?:https://)?(?:www.)?(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
                 }
-                console.log(regex);
                 const matches = userBio.match(regex);
                 if (!matches) {
                     continue;
@@ -289,7 +279,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         // true for most subs, so we only do these checks if the user was going to be banned otherwise.
         const skipChecksPromises: Promise<boolean>[] = [isModerator(context, subredditName, userName)];
         if (settings[AppSetting.ExemptApprovedUser]) {
-            skipChecksPromises.push(isContributor(context, subredditName, userName));
+            skipChecksPromises.push(isContributor(context.reddit, subredditName, userName));
         }
 
         const reasonsToSkipChecks = await Promise.all(skipChecksPromises);

@@ -61,6 +61,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### Coming soon
+
+* Improved performance and reliability
+
 ### 1.11.2
 
 * Add option to check user bios for domains

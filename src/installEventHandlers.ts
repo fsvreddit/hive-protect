@@ -3,6 +3,7 @@ import { AppInstall, AppUpgrade } from "@devvit/protos";
 import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
 import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
 import { CLEANUP_JOB } from "./constants.js";
+import json2md from "json2md";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
     // Clear down scheduled tasks and re-add.
@@ -53,21 +54,27 @@ async function oneOffCheckForOversizeSettings (context: TriggerContext) {
     if (banUser && (banMessageTooLong || banNoteTooLong)) {
         const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
 
-        let modmail = `Thanks for upgrading Hive Protector on /r/${subredditName}.\n\n`;
-        modmail += `There's an issue with  the [settings](https://developers.reddit.com/r/${subredditName}/apps/hive-protect) that needs to be addressed for this app to work properly.\n\n`;
+        const modmail: json2md.DataObject[] = [
+            { p: `Thanks for upgrading Hive Protector on /r/${subredditName}.` },
+            { p: `There's an issue with  the [settings](https://developers.reddit.com/r/${subredditName}/apps/hive-protect) that needs to be addressed for this app to work properly.` },
+        ];
+
+        const bullets: string[] = [];
         if (banMessageTooLong) {
-            modmail += `* The Ban Message is too long - it needs to be under ${BAN_MESSAGE_MAX_LENGTH} characters long.\n`;
+            bullets.push(`The Ban Message is too long - it needs to be under ${BAN_MESSAGE_MAX_LENGTH} characters long.`);
         }
         if (banNoteTooLong) {
-            modmail += `* The Ban Note is too long - it needs to be under ${BAN_NOTE_MAX_LENGTH} characters long.\n`;
+            bullets.push(`The Ban Note is too long - it needs to be under ${BAN_NOTE_MAX_LENGTH} characters long.`);
         }
 
-        modmail += "\nIt is likely that Hive Protector will not be able to ban users until this is resolved. Sorry for the inconvenience.";
+        modmail.push({ ul: bullets });
+
+        modmail.push({ p: "It is likely that Hive Protector will not be able to ban users until this is resolved. Sorry for the inconvenience." });
 
         await context.reddit.sendPrivateMessage({
             subject: "Hive Protector Configuration Issue",
             to: `/r/${subredditName}`,
-            text: modmail,
+            text: json2md(modmail),
         });
     }
 

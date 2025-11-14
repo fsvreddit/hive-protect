@@ -1,6 +1,5 @@
 import { Comment, Post, TriggerContext, UserNoteLabel } from "@devvit/public-api";
 import { AppSetting } from "../settings.js";
-import { replaceAll } from "../utility.js";
 import { ToolboxClient, UsernoteInit } from "toolbox-devvit";
 import { ActionBase } from "./_ActionBase.js";
 
@@ -17,8 +16,8 @@ export class ActionAddModnote extends ActionBase {
             return;
         }
 
-        modNote = replaceAll(modNote, "{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
-        modNote = replaceAll(modNote, "{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
+        modNote = modNote.replaceAll("{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
+        modNote = modNote.replaceAll("{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
 
         const redisKey = `modNoteAdded:${this.target.authorName}`;
         const alreadyAdded = await this.context.redis.get(redisKey);

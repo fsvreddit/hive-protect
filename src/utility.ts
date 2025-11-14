@@ -15,24 +15,6 @@ export async function isModerator (context: TriggerContext, subredditName: strin
     }
 }
 
-export async function isContributor (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
-    const filteredContributorList = await context.reddit.getApprovedUsers({ subredditName, username }).all();
-    return filteredContributorList.length > 0;
-}
-
-export async function isBanned (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
-    const bannedUsers = await context.reddit.getBannedUsers({
-        subredditName,
-        username,
-    }).all();
-
-    return bannedUsers.length > 0;
-}
-
-export function replaceAll (input: string, pattern: string, replacement: string): string {
-    return input.split(pattern).join(replacement);
-}
-
 export function trimLeadingWWW (hostname: string): string {
     if (hostname.startsWith("www.")) {
         return hostname.substring(4);

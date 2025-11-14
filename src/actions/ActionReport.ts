@@ -1,5 +1,4 @@
 import { APPROVALS_KEY } from "../handleContentCreation.js";
-import { replaceAll } from "../utility.js";
 import { addDays } from "date-fns";
 import { AppSetting } from "../settings.js";
 import { ActionBase } from "./_ActionBase.js";
@@ -30,9 +29,9 @@ export class ActionReport extends ActionBase {
         }
 
         if (shouldReport) {
-            reportReason = replaceAll(reportReason, "{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
-            reportReason = replaceAll(reportReason, "{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
-            reportReason = replaceAll(reportReason, "{{approvals}}", currentApprovalCount?.toString() ?? "0");
+            reportReason = reportReason.replaceAll("{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
+            reportReason = reportReason.replaceAll("{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
+            reportReason = reportReason.replaceAll("{{approvals}}", currentApprovalCount?.toString() ?? "0");
             await this.context.reddit.report(this.target, { reason: reportReason });
             await this.context.redis.set(`itemreported~${this.target.id}`, new Date().getTime.toString(), { expiration: addDays(new Date(), 7) });
             console.log(`Reported comment ${this.target.id}`);
