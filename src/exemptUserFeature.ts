@@ -1,5 +1,5 @@
 import { Comment, Context, MenuItemOnPressEvent, Post, TriggerContext } from "@devvit/public-api";
-import { isLinkId } from "@devvit/shared-types/tid.js";
+import { isLinkId } from "@devvit/public-api/types/tid.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
 
 export async function userIsExemptByMenu (username: string, context: Context | TriggerContext): Promise<boolean> {

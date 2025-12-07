@@ -9,27 +9,26 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/protos": "0.11.19",
-    "@devvit/public-api": "0.11.19",
-    "@devvit/shared-types": "0.11.19",
-    "@types/json2md": "^1.5.4",
-    "@types/lodash": "^4.14.202",
-    "@types/pluralize": "^0.0.33",
-    "@types/regex-escape": "^3.4.1",
+    "@devvit/protos": "0.12.5",
+    "@devvit/public-api": "0.12.5",
     "date-fns": "^4.0.0",
+    "devvit-helpers": "^0.8.0",
+    "escape-string-regexp": "^5.0.0",
     "json2md": "^2.0.3",
     "lodash": "^4.17.21",
     "pluralize": "^8.0.0",
-    "regex-escape": "^3.4.11",
     "toolbox-devvit": "^0.3.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",
     "@stylistic/eslint-plugin": "^5.2.3",
+    "@types/json2md": "^1.5.4",
+    "@types/lodash": "^4.14.202",
+    "@types/pluralize": "^0.0.33",
     "@vitest/eslint-plugin": "^1.1.0",
     "eslint": "^9.10.0",
     "typescript": "5.8.3",
     "typescript-eslint": "^8.4.0",
-    "vitest": "^3.0.5"
+    "vitest": "^4.0.7"
   }
 }

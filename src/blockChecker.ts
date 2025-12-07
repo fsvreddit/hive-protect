@@ -1,6 +1,6 @@
 import { Comment, Post, TriggerContext } from "@devvit/public-api";
-import { isModerator } from "./utility.js";
 import { addDays, subMonths } from "date-fns";
+import { isModerator } from "devvit-helpers";
 import { uniq } from "lodash";
 
 async function appUserIsModOfSub (subredditName: string, context: TriggerContext): Promise<boolean> {
@@ -10,7 +10,7 @@ async function appUserIsModOfSub (subredditName: string, context: TriggerContext
         return JSON.parse(cachedValue) as boolean;
     }
 
-    const isMod = await isModerator(context, subredditName, context.appName);
+    const isMod = await isModerator(context.reddit, subredditName, context.appName);
     console.log(`App account mod of ${subredditName}? ${isMod}`);
 
     await context.redis.set(redisKey, JSON.stringify(isMod), { expiration: addDays(new Date(), 7) });

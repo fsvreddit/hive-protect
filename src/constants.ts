@@ -1,1 +1,4 @@
-export const CLEANUP_JOB = "cleanupDeletedAccounts";
+export enum SchedulerJob {
+    CleanupDeletedAccounts = "cleanupDeletedAccounts",
+    CheckUserQueue = "checkUserQueue",
+}

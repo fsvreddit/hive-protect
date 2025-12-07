@@ -1,6 +1,5 @@
 import { AppSetting } from "../settings.js";
-import { replaceAll } from "../utility.js";
-import { isLinkId } from "@devvit/shared-types/tid.js";
+import { isLinkId } from "@devvit/public-api/types/tid.js";
 import pluralize from "pluralize";
 import { ActionBase } from "./_ActionBase.js";
 import { setCleanupForUser } from "../cleanupTasks.js";
@@ -30,12 +29,11 @@ export class ActionReply extends ActionBase {
         await this.context.redis.incrBy(redisKey, 1);
         await setCleanupForUser(this.target.authorName, this.context);
 
-        replyMessage = replaceAll(replyMessage, "{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
-        replyMessage = replaceAll(replyMessage, "{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
-        replyMessage = replaceAll(replyMessage, "{{socialurls}}", this.problematicItemsResult.socialURLs.join("  \n"));
-        replyMessage = replaceAll(replyMessage, "{{permalink}}", this.problematicItemsResult.itemPermalink ?? "");
-        replyMessage = replaceAll(replyMessage, "{{username}}", this.target.authorName);
-
+        replyMessage = replyMessage.replaceAll("{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
+        replyMessage = replyMessage.replaceAll("{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
+        replyMessage = replyMessage.replaceAll("{{socialurls}}", this.problematicItemsResult.socialURLs.join(", "));
+        replyMessage = replyMessage.replaceAll("{{permalink}}", this.problematicItemsResult.itemPermalink ?? "");
+        replyMessage = replyMessage.replaceAll("{{username}}", this.target.authorName);
         replyMessage = this.sanitiseOutput(replyMessage);
 
         replyMessage = `${replyMessage.trim()}\n\n*I am a bot, and this action was performed automatically. Please [contact the moderators of this subreddit](/message/compose/?to=/r/${this.target.subredditName}) if you have any questions or concerns.*`;
@@ -57,7 +55,7 @@ export class ActionReply extends ActionBase {
         let replacementsOccurred = 0;
         for (const domain of sitewideBannedDomainsArray) {
             if (result.includes(domain)) {
-                result = replaceAll(result, domain, "[REDACTED]");
+                result = result.replaceAll(domain, "[REDACTED]");
                 replacementsOccurred++;
             }
         }

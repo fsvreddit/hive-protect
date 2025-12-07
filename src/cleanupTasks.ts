@@ -1,4 +1,4 @@
-import { JobContext, TriggerContext, User, ZMember } from "@devvit/public-api";
+import { JobContext, JSONObject, ScheduledJobEvent, TriggerContext, User, ZMember } from "@devvit/public-api";
 import { addDays, addMinutes, addSeconds } from "date-fns";
 import { APPROVALS_KEY } from "./handleContentCreation.js";
 import { compact, uniq } from "lodash";
@@ -25,7 +25,7 @@ async function userActive (username: string, context: JobContext): Promise<boole
                 user: username,
             }).all();
         } catch {
-            // If mod notes retrieval fails, we assume the user is deleted. Otherwise suspended.
+            // If mod notes retrieval fails, we assume the user is deleted. Otherwise suspended or shadowbanned.
             return false;
         }
     }
@@ -33,15 +33,10 @@ async function userActive (username: string, context: JobContext): Promise<boole
     return true;
 }
 
-interface UserActive {
-    username: string;
-    isActive: boolean;
-}
-
-export async function cleanupDeletedAccounts (_: unknown, context: JobContext) {
+export async function cleanupDeletedAccounts (event: ScheduledJobEvent<JSONObject | undefined>, context: JobContext) {
     console.log("Cleanup: Starting cleanup job");
-    const items = await context.redis.zRange(CLEANUP_LOG_KEY, 0, new Date().getTime(), { by: "score" });
-    if (items.length === 0) {
+    const usersDueACheck = await context.redis.zRange(CLEANUP_LOG_KEY, 0, new Date().getTime(), { by: "score" }).then(items => items.map(item => item.member));
+    if (usersDueACheck.length === 0) {
         // No user accounts need to be checked.
         console.log("Cleanup: No users are due a check.");
         return;
@@ -50,45 +45,39 @@ export async function cleanupDeletedAccounts (_: unknown, context: JobContext) {
     // Grab the app account's user to ensure that platform is stable.
     await context.reddit.getAppUser();
 
-    const itemsToCheck = 50;
+    const runLimit = addSeconds(new Date(), 10);
 
-    if (items.length > itemsToCheck) {
-        console.log(`Cleanup: ${items.length} accounts are due a check. Checking first ${itemsToCheck} in this run.`);
-    } else {
-        console.log(`Cleanup: ${items.length} accounts are due a check.`);
+    const recentlyRunKey = "cleanupRecentlyRun";
+    if (event.data?.fromCron && await context.redis.exists(recentlyRunKey)) {
+        return;
     }
+    await context.redis.set(recentlyRunKey, "true", { expiration: addMinutes(new Date(), 1) });
 
-    // Get the first N accounts that are due a check.
-    const usersToCheck = items.slice(0, itemsToCheck).map(item => item.member);
-    const userStatuses: UserActive[] = [];
+    while (new Date() < runLimit && usersDueACheck.length > 0) {
+        const username = usersDueACheck.shift();
+        if (!username) {
+            break;
+        }
 
-    for (const username of usersToCheck) {
-        const isActive = await userActive(username, context);
-        userStatuses.push(({ username, isActive } as UserActive));
-    }
+        if (await userActive(username, context)) {
+            await setCleanupForUser(username, context);
+            console.log(`Cleanup: User ${username} is still active. Rescheduled check.`);
+            continue;
+        }
 
-    const activeUsers = userStatuses.filter(user => user.isActive).map(user => user.username);
-    const deletedUsers = userStatuses.filter(user => !user.isActive).map(user => user.username);
-
-    // For active users, set their next check date to be one day from now.
-    if (activeUsers.length > 0) {
-        console.log(`Cleanup: ${activeUsers.length} users still active out of ${userStatuses.length}. Resetting next check time.`);
-        await context.redis.zAdd(CLEANUP_LOG_KEY, ...activeUsers.map(user => ({ member: user, score: addDays(new Date(), DAYS_BETWEEN_CHECKS).getTime() } as ZMember)));
-    }
-
-    // For deleted users, remove them from both the cleanup log and remove previous records of bans and approvals.
-    if (deletedUsers.length > 0) {
-        console.log(`Cleanup: ${deletedUsers.length} users out of ${userStatuses.length} are deleted or suspended. Removing from data store.`);
-        await context.redis.zRem(APPROVALS_KEY, deletedUsers);
-        await Promise.all(deletedUsers.map(user => context.redis.del(`participation-prevbanned-${user}`)));
-        await context.redis.zRem(CLEANUP_LOG_KEY, deletedUsers);
-        await context.redis.del(...deletedUsers.map(user => `modNoteAdded:${user}`));
-        await context.redis.del(...deletedUsers.map(user => `repliesMade:${user}`));
-        await context.redis.del(...deletedUsers.map(user => `userExempt:${user}`));
+        // User is deleted. Remove from cleanup log and remove previous records of bans and approvals.
+        await context.redis.zRem(APPROVALS_KEY, [username]);
+        await context.redis.del(`participation-prevbanned-${username}`);
+        await context.redis.del(`modNoteAdded:${username}`);
+        await context.redis.del(`repliesMade:${username}`);
+        await context.redis.del(`userExempt:${username}`);
+        await context.redis.del(`antiBlockModNoteAdded~${username}`);
+        await context.redis.zRem(CLEANUP_LOG_KEY, [username]);
+        console.log(`Cleanup: User ${username} appears to be deleted. Removed from data store.`);
     }
 
     // If there were more users in this run than we could process, schedule another run immediately.
-    if (items.length > itemsToCheck) {
+    if (usersDueACheck.length > 0) {
         await context.scheduler.runJob({
             name: "cleanupDeletedAccounts",
             runAt: addSeconds(new Date(), 5),

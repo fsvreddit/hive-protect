@@ -1,7 +1,7 @@
 import { AppSetting } from "../settings.js";
 import { setCleanupForUser } from "../cleanupTasks.js";
-import { isBanned } from "../utility.js";
 import { ActionBase } from "./_ActionBase.js";
+import { isBanned } from "devvit-helpers";
 
 export class ActionBan extends ActionBase {
     public override isModuleEnabled (): boolean {
@@ -19,7 +19,7 @@ export class ActionBan extends ActionBase {
         const userName = this.target.authorName;
         const subredditName = this.context.subredditName ?? await this.context.reddit.getCurrentSubredditName();
 
-        const userIsBanned = await isBanned(this.context, subredditName, userName);
+        const userIsBanned = await isBanned(this.context.reddit, subredditName, userName);
         if (userIsBanned) {
             console.log(`Skipping ban for ${userName}, user is already banned.`);
             return;
@@ -27,11 +27,11 @@ export class ActionBan extends ActionBase {
 
         let banMessage = this.settings[AppSetting.BanMessage] as string | undefined;
         if (banMessage) {
-            banMessage = banMessage.replace("{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
-            banMessage = banMessage.replace("{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
-            banMessage = banMessage.replace("{{socialurls}}", this.problematicItemsResult.socialURLs.join("  \n"));
-            banMessage = banMessage.replace("{{permalink}}", this.problematicItemsResult.itemPermalink ?? "");
-            banMessage = banMessage.replace("{{username}}", userName);
+            banMessage = banMessage.replaceAll("{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
+            banMessage = banMessage.replaceAll("{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
+            banMessage = banMessage.replaceAll("{{socialurls}}", this.problematicItemsResult.socialURLs.join(", "));
+            banMessage = banMessage.replaceAll("{{permalink}}", this.problematicItemsResult.itemPermalink ?? "");
+            banMessage = banMessage.replaceAll("{{username}}", userName);
         }
         const banNote = this.settings[AppSetting.BanNote] as string | undefined;
 
