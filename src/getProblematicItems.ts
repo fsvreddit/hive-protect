@@ -1,13 +1,13 @@
-import { Comment, GetUserOverviewOptions, Post, TriggerContext } from "@devvit/public-api";
+import { Comment, GetUserOverviewOptions, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
 import { sum, uniq } from "lodash";
 import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
-import { domainFromUrlString, isModerator, trimLeadingWWW } from "./utility.js";
+import { domainFromUrlString, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
-import { addHours, subDays } from "date-fns";
+import { addHours, addWeeks, subDays } from "date-fns";
 import { getUserExtended } from "./extendedDevvit.js";
-import RegexEscape from "regex-escape";
-import { getUserSocialLinks, isContributor } from "devvit-helpers";
+import escapeStringRegexp from "escape-string-regexp";
+import { getUserSocialLinks, isContributor, isModerator } from "devvit-helpers";
 
 export const CACHE_DURATION_HOURS = 12;
 
@@ -94,7 +94,7 @@ export function isDomainInList (domain: string, domainList: Domain[]): boolean {
     return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
-export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
+export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", settings: SettingsValues, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
     const emptyResult = {
         badSubs: [],
         badDomains: [],
@@ -110,7 +110,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         return lastResult;
     }
 
-    const settings = await context.settings.getAll();
     const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as string[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0] as ContentTypeToActOn;
     if ((typesToActOn === ContentTypeToActOn.PostsOnly && kind === "comment") || (typesToActOn === ContentTypeToActOn.CommentsOnly && kind === "link")) {
         return emptyResult;
@@ -137,6 +136,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
     // Get main config and quit if not defined properly.
     const subReddits = settings[AppSetting.Subreddits] as string | undefined ?? "";
+    const matchAnyNsfwSub = settings[AppSetting.IncludeAnyNSFWSub] as boolean | undefined ?? false;
     const domains = settings[AppSetting.Domains] as string | undefined ?? "";
 
     // Convert into an array of lower-case individual sub names
@@ -147,7 +147,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         .filter(domain => domain !== "")
         .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
 
-    if (subredditList.length === 0 && domainList.length === 0) {
+    if (subredditList.length === 0 && domainList.length === 0 && !matchAnyNsfwSub) {
         console.log("No subreddits or domains defined.");
         return emptyResult;
     }
@@ -169,15 +169,30 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         } else if (commentThreshold) {
             userContent = await context.reddit.getCommentsByUser(userOverviewOptions).all();
         }
-    } catch {
+    } catch (error) {
+        console.error("Error retrieving user content:", error);
         return emptyResult;
+    }
+
+    if (!userContent.some(item => item.subredditId !== context.subredditId)) {
+        console.warn(`${userName} has no content outside of the current subreddit!`);
+        return emptyResult;
+    }
+
+    const nsfwSubs: string[] = [];
+    if (matchAnyNsfwSub && userContent.length > 0) {
+        for (const sub of uniq(userContent.filter(item => item.subredditId !== context.subredditId).map(item => item.subredditName))) {
+            if (await subIsNsfw(sub, context)) {
+                nsfwSubs.push(sub.toLowerCase());
+            }
+        }
     }
 
     let badSubItems = userContent
         .filter(item => item.subredditId !== context.subredditId)
         .map(item => ({
             item,
-            foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()),
+            foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()) || nsfwSubs.includes(item.subredditName),
             foundViaDomain: isDomainInList(domainFromUrlString(item.url), domainList),
         } as BadSubItem)).filter(item => item.foundViaDomain || item.foundViaSubreddit);
 
@@ -198,9 +213,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             for (const domain of domainList) {
                 let regex: RegExp;
                 if (domain.wildcard) {
-                    regex = new RegExp(`\\b(?:https://)?(?:\\w+.)*(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
+                    regex = new RegExp(`\\b(?:https://)?(?:\\w+.)*(${escapeStringRegexp(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
                 } else {
-                    regex = new RegExp(`\\b(?:https://)?(?:www.)?(${RegexEscape(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
+                    regex = new RegExp(`\\b(?:https://)?(?:www.)?(${escapeStringRegexp(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
                 }
                 const matches = userBio.match(regex);
                 if (!matches) {
@@ -277,7 +292,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     if (failsChecks) {
         // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
         // true for most subs, so we only do these checks if the user was going to be banned otherwise.
-        const skipChecksPromises: Promise<boolean>[] = [isModerator(context, subredditName, userName)];
+        const skipChecksPromises: Promise<boolean>[] = [isModerator(context.reddit, subredditName, userName)];
         if (settings[AppSetting.ExemptApprovedUser]) {
             skipChecksPromises.push(isContributor(context.reddit, subredditName, userName));
         }
@@ -331,4 +346,23 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     await context.redis.set(getLatestResultKey(userName), JSON.stringify(result), { expiration: cacheExpiryTime });
 
     return result;
+}
+
+async function subIsNsfw (subredditName: string, context: TriggerContext): Promise<boolean> {
+    const subNsfwCacheKey = `subredditnsfw:${subredditName}`;
+    const cachedResult = await context.redis.get(subNsfwCacheKey);
+    if (cachedResult !== undefined) {
+        return JSON.parse(cachedResult) as boolean;
+    }
+
+    let nsfw: boolean;
+    try {
+        const subreddit = await context.reddit.getSubredditInfoByName(subredditName);
+        nsfw = subreddit.isNsfw ?? false;
+    } catch {
+        nsfw = false;
+    }
+
+    await context.redis.set(subNsfwCacheKey, JSON.stringify(nsfw), { expiration: addWeeks(new Date(), 1) });
+    return nsfw;
 }

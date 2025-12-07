@@ -2,7 +2,7 @@ import { TriggerContext } from "@devvit/public-api";
 import { AppInstall, AppUpgrade } from "@devvit/protos";
 import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
 import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
-import { CLEANUP_JOB } from "./constants.js";
+import { SchedulerJob } from "./constants.js";
 import json2md from "json2md";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
@@ -16,14 +16,22 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     console.log(`Running cleanup job at ${minute} past every 6th hour starting at ${hour}.`);
 
     await context.scheduler.runJob({
-        name: CLEANUP_JOB,
+        name: SchedulerJob.CleanupDeletedAccounts,
         cron: `${minute} ${hour}/6 * * *`,
+        data: { fromCron: true },
     });
 
-    const cleanupPopulated = await context.redis.get("CleanupPopulated");
+    await context.scheduler.runJob({
+        name: SchedulerJob.CheckUserQueue,
+        cron: "* * * * *",
+        data: { fromCron: true },
+    });
+
+    const cleanupPopulatedKey = "CleanupPopulated";
+    const cleanupPopulated = await context.redis.get(cleanupPopulatedKey);
     if (!cleanupPopulated) {
         await addCleanupEntriesForBannedAccounts(context);
-        await context.redis.set("CleanupPopulated", new Date().getTime().toString());
+        await context.redis.set(cleanupPopulatedKey, new Date().getTime().toString());
     } else {
         await rescheduleCleanupEntries(context);
     }

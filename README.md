@@ -63,6 +63,9 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 
 ### Coming soon
 
+* Check users after a short delay to ensure that curated profiles can be viewed by app
+* Allow detection of users who have participated in *any* NSFW sub without explicitly having to specify a list
+* Add option to add a one-off mod note if a user is potentially blocking Hive Protector
 * Improved performance and reliability
 
 ### 1.11.2

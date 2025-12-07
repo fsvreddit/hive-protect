@@ -26,9 +26,8 @@ export async function handleModActionEvent (event: ModAction, context: TriggerCo
         }
 
         // Check to see if post/comment was previously flagged by this app.
-        const itemReported = await context.redis.get(`itemreported~${targetId}`);
+        const itemReported = await context.redis.exists(`itemreported~${targetId}`);
         if (!itemReported) {
-            console.log(`Item ${targetId} was not reported by this app. Not incrementing approval count.`);
             return;
         }
 

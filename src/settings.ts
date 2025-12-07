@@ -4,6 +4,7 @@ import { trimLeadingWWW } from "./utility.js";
 export enum AppSetting {
     // Detection options
     Subreddits = "subreddits",
+    IncludeAnyNSFWSub = "includeAnyNSFWSub",
     NumberOfSubredditsThatMustMatch = "numSubredditsToMatch",
     Domains = "domains",
     ContentTypeToActOn = "contenttypetoacton",
@@ -64,6 +65,7 @@ export enum AppSetting {
 
     // Block Checker
     AntiBlockCheckerEnable = "antiBlockCheckerEnabled",
+    AntiBlockCheckerAddModNote = "antiBlockCheckerAddModNote",
 
     // App scoped settings
     SitewideBannedDomains = "sitewideBannedDomains",
@@ -117,6 +119,13 @@ export const appSettings: SettingsFormField[] = [
                 name: AppSetting.Subreddits,
                 label: "Enter a comma-separated list of subreddits to watch e.g. freekarma4u,freekarma4all",
                 helpText: "Warning: targeting subreddits on the basis of identity or vulnerability may be a breach of Reddit's Mod Code of Conduct.",
+            },
+            {
+                type: "boolean",
+                name: AppSetting.IncludeAnyNSFWSub,
+                label: "Include any NSFW subreddit in the subreddit list",
+                helpText: "If enabled, any NSFW subreddit will be treated as if it were included in the subreddit list above.",
+                defaultValue: false,
             },
             {
                 type: "number",
@@ -512,6 +521,13 @@ export const appSettings: SettingsFormField[] = [
                         name: AppSetting.AntiBlockCheckerEnable,
                         label: "Check to see if users may be blocking /u/hive-protect",
                         helpText: "Users blocking this app may be doing so to evade blocks.",
+                        defaultValue: false,
+                    },
+                    {
+                        type: "boolean",
+                        name: AppSetting.AntiBlockCheckerAddModNote,
+                        label: "Add a mod note if user may be blocking /u/hive-protect",
+                        helpText: "Requires the 'Check to see if users may be blocking /u/hive-protect' option to be enabled.",
                         defaultValue: false,
                     },
                 ],

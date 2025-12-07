@@ -1,9 +1,9 @@
 import { Devvit } from "@devvit/public-api";
-import { handleCommentSubmitEvent, handlePostSubmitEvent } from "./handleContentCreation.js";
+import { handleCommentSubmitEvent, handlePostSubmitEvent, processUserCheckQueue } from "./handleContentCreation.js";
 import { appSettings } from "./settings.js";
 import { handleAppInstallOrUpgradeEvent } from "./installEventHandlers.js";
 import { cleanupDeletedAccounts } from "./cleanupTasks.js";
-import { CLEANUP_JOB } from "./constants.js";
+import { SchedulerJob } from "./constants.js";
 import { handleModActionEvent } from "./handleModActions.js";
 import { handleUserExemptMenu } from "./exemptUserFeature.js";
 
@@ -44,8 +44,13 @@ Devvit.addTrigger({
 });
 
 Devvit.addSchedulerJob({
-    name: CLEANUP_JOB,
+    name: SchedulerJob.CleanupDeletedAccounts,
     onRun: cleanupDeletedAccounts,
+});
+
+Devvit.addSchedulerJob({
+    name: SchedulerJob.CheckUserQueue,
+    onRun: processUserCheckQueue,
 });
 
 Devvit.configure({
