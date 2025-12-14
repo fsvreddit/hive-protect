@@ -131,8 +131,8 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
         }
 
         const { username, targetId } = firstEntry;
-        await checkUserFromQueue(username, targetId, settings, context);
         await context.redis.zRem(CHECK_QUEUE_KEY, [`${username}:${targetId}`]);
+        await checkUserFromQueue(username, targetId, settings, context);
     }
 
     if (checkQueue.length > 0) {

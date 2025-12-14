@@ -61,7 +61,7 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
-### v1.12.1
+### v1.12.2
 
 * Add resilience in case of scheduler jobs not running correctly
 

@@ -1,6 +1,6 @@
 # Change log for Hive Protector
 
-### v1.12.1
+### v1.12.2
 
 * Add resilience in case of scheduler jobs not running correctly
 
