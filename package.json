@@ -12,7 +12,7 @@
     "@devvit/protos": "0.12.5",
     "@devvit/public-api": "0.12.5",
     "date-fns": "^4.0.0",
-    "devvit-helpers": "^0.8.0",
+    "devvit-helpers": "^0.8.4",
     "escape-string-regexp": "^5.0.0",
     "json2md": "^2.0.3",
     "lodash": "^4.17.21",

@@ -8,6 +8,7 @@ import { actionUser } from "./actionUser.js";
 import { problematicItemsFound } from "./getProblematicItems.js";
 import { SchedulerJob } from "./constants.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
+import { createCronJobsIfNotPresent } from "./jobManagement.js";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -42,6 +43,12 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
     }
 
     await addUserToQueue(targetId, userName, context);
+
+    const lastJobCheckKey = "LastJobCheck";
+    if (!await context.redis.exists(lastJobCheckKey)) {
+        await createCronJobsIfNotPresent(context);
+        await context.redis.set(lastJobCheckKey, "", { expiration: addHours(new Date(), 1) });
+    }
 }
 
 export async function checkUserFromQueue (username: string, targetId: string, settings: SettingsValues, context: TriggerContext) {

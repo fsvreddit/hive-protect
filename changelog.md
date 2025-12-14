@@ -1,6 +1,17 @@
 # Change log for Hive Protector
 
-### 1.11.1
+### v1.12.1
+
+* Add resilience in case of scheduler jobs not running correctly
+
+### v1.12.0
+
+* Check users after a short delay to ensure that curated profiles can be viewed by app
+* Allow detection of users who have participated in *any* NSFW sub without explicitly having to specify a list
+* Add option to add a one-off mod note if a user is potentially blocking Hive Protector
+* Improved performance and reliability
+
+### 1.11.2
 
 * Add option to check user bios for domains
 * Add option to exempt users based on flair CSS class

@@ -2,30 +2,15 @@ import { TriggerContext } from "@devvit/public-api";
 import { AppInstall, AppUpgrade } from "@devvit/protos";
 import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
 import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
-import { SchedulerJob } from "./constants.js";
 import json2md from "json2md";
+import { createCronJobsIfNotPresent } from "./jobManagement.js";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
     // Clear down scheduled tasks and re-add.
     const existingJobs = await context.scheduler.listJobs();
     await Promise.all(existingJobs.map(job => context.scheduler.cancelJob(job.id)));
 
-    // Cleanup job should run every hour. Randomise start time.
-    const minute = Math.floor(Math.random() * 60);
-    const hour = Math.floor(Math.random() * 6);
-    console.log(`Running cleanup job at ${minute} past every 6th hour starting at ${hour}.`);
-
-    await context.scheduler.runJob({
-        name: SchedulerJob.CleanupDeletedAccounts,
-        cron: `${minute} ${hour}/6 * * *`,
-        data: { fromCron: true },
-    });
-
-    await context.scheduler.runJob({
-        name: SchedulerJob.CheckUserQueue,
-        cron: "* * * * *",
-        data: { fromCron: true },
-    });
+    await createCronJobsIfNotPresent(context);
 
     const cleanupPopulatedKey = "CleanupPopulated";
     const cleanupPopulated = await context.redis.get(cleanupPopulatedKey);
