@@ -4,8 +4,12 @@ import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./
 import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
 import json2md from "json2md";
 import { createCronJobsIfNotPresent } from "./jobManagement.js";
+import { subHours } from "date-fns";
+import { removeQueuedEntriesOlderThan } from "./handleContentCreation.js";
 
 export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
+    console.log("Starting app install/upgrade tasks.");
+
     // Clear down scheduled tasks and re-add.
     const existingJobs = await context.scheduler.listJobs();
     await Promise.all(existingJobs.map(job => context.scheduler.cancelJob(job.id)));
@@ -27,6 +31,10 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
     await context.redis.del("subredditName");
     await context.redis.del("appName");
     await context.redis.del("secondCheckQueue");
+
+    await removeQueuedEntriesOlderThan(subHours(new Date(), 2), context);
+
+    console.log("Completed app install/upgrade tasks.");
 }
 
 async function oneOffCheckForOversizeSettings (context: TriggerContext) {

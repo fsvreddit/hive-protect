@@ -1,5 +1,6 @@
 import { ScheduledCronJob, ScheduledJob, TriggerContext } from "@devvit/public-api";
 import { SchedulerJob } from "./constants.js";
+import pluralize from "pluralize";
 
 export async function createCronJobsIfNotPresent (context: TriggerContext) {
     const jobs = await context.scheduler.listJobs();
@@ -11,13 +12,14 @@ export async function createCronJobsIfNotPresent (context: TriggerContext) {
         // Cleanup job should run every hour. Randomise start time.
         const minute = Math.floor(Math.random() * 60);
         const hour = Math.floor(Math.random() * 6);
-        console.log(`Running cleanup job at ${minute} past every 6th hour starting at ${hour}.`);
 
         await context.scheduler.runJob({
             name: SchedulerJob.CleanupDeletedAccounts,
             cron: `${minute} ${hour}/6 * * *`,
             data: { fromCron: true },
         });
+
+        console.log(`Running cleanup job at ${minute} past every 6th hour starting at ${hour}.`);
     }
 
     const processQueueJobs = jobs.filter(job => job.name === SchedulerJob.CheckUserQueue as string);
@@ -27,6 +29,8 @@ export async function createCronJobsIfNotPresent (context: TriggerContext) {
             cron: "* * * * *",
             data: { fromCron: true },
         });
+
+        console.log("Scheduled user check queue processing job to run every minute.");
     }
 
     if (cleanupJobs.length > 1) {
@@ -37,5 +41,8 @@ export async function createCronJobsIfNotPresent (context: TriggerContext) {
         jobsToRemove.push(...processQueueJobs.slice(1));
     }
 
-    await Promise.all(jobsToRemove.map(job => context.scheduler.cancelJob(job.id)));
+    if (jobsToRemove.length > 0) {
+        await Promise.all(jobsToRemove.map(job => context.scheduler.cancelJob(job.id)));
+        console.log(`Removed ${jobsToRemove.length} duplicate scheduled ${pluralize("job", jobsToRemove.length)}.`);
+    }
 }

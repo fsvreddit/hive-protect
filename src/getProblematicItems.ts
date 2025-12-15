@@ -170,7 +170,11 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             userContent = await context.reddit.getCommentsByUser(userOverviewOptions).all();
         }
     } catch (error) {
-        console.error("Error retrieving user content:", error);
+        if (error instanceof Error) {
+            console.error(`Error retrieving user content for ${userName}:`, error.message);
+        } else {
+            console.error(`Error retrieving user content for ${userName}:`, error);
+        }
         return emptyResult;
     }
 

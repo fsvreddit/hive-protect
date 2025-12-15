@@ -9,6 +9,7 @@ import { problematicItemsFound } from "./getProblematicItems.js";
 import { SchedulerJob } from "./constants.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
 import { createCronJobsIfNotPresent } from "./jobManagement.js";
+import pluralize from "pluralize";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -34,6 +35,13 @@ const CHECK_QUEUE_KEY = "UserCheckQueue";
 
 async function addUserToQueue (targetId: string, username: string, context: TriggerContext) {
     await context.redis.zAdd(CHECK_QUEUE_KEY, { member: `${username}:${targetId}`, score: addSeconds(new Date(), 10).getTime() });
+}
+
+export async function removeQueuedEntriesOlderThan (cutoffDate: Date, context: TriggerContext) {
+    const removedCount = await context.redis.zRemRangeByScore(CHECK_QUEUE_KEY, 0, cutoffDate.getTime());
+    if (removedCount > 0) {
+        console.log(`Removed ${removedCount} entries from user check queue older than ${cutoffDate.toISOString()}.`);
+    }
 }
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
@@ -85,12 +93,12 @@ export async function checkUserFromQueue (username: string, targetId: string, se
     }
 
     const redisKey = `alreadyChecked~${targetId}`;
-    const alreadyChecked = await context.redis.get(redisKey);
+    const alreadyChecked = await context.redis.exists(redisKey);
     if (alreadyChecked) {
         console.log(`Duplicate event fired for ${targetId}`);
         return;
     }
-    await context.redis.set(redisKey, "true", { expiration: addHours(new Date(), 6) });
+    await context.redis.set(redisKey, "", { expiration: addHours(new Date(), 6) });
 
     // Now check if the submission is of a type configured to be checked.
     // I'm doing this second because it's likely that most subreddits will be configured as "Posts And Comments",
@@ -112,12 +120,16 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
         }));
 
     if (checkQueue.length === 0) {
+        console.log("User check queue is empty.");
         return;
     }
 
     const runRecentlyKey = "UserCheckQueueRunRecently";
-    if (event.data?.fromCron && await context.redis.exists(runRecentlyKey)) {
-        return;
+    if (event.data?.fromCron) {
+        if (await context.redis.exists(runRecentlyKey)) {
+            return;
+        }
+        console.log(`Starting processing of user check queue with ${checkQueue.length} ${pluralize("item", checkQueue.length)}.`);
     }
     await context.redis.set(runRecentlyKey, "true", { expiration: addSeconds(new Date(), 30) });
 
@@ -132,7 +144,15 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
 
         const { username, targetId } = firstEntry;
         await context.redis.zRem(CHECK_QUEUE_KEY, [`${username}:${targetId}`]);
-        await checkUserFromQueue(username, targetId, settings, context);
+        try {
+            await checkUserFromQueue(username, targetId, settings, context);
+        } catch (err) {
+            if (err instanceof Error) {
+                console.error(`Error processing user ${username} for item ${targetId}: ${err.message}`);
+            } else {
+                console.error(`Error processing user ${username} for item ${targetId}:`, err);
+            }
+        }
     }
 
     if (checkQueue.length > 0) {
@@ -142,6 +162,7 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
             runAt: new Date(),
         });
     } else {
+        console.log("User check queue fully processed.");
         await context.redis.del(runRecentlyKey);
     }
 }
