@@ -45,7 +45,7 @@ export async function removeQueuedEntriesOlderThan (cutoffDate: Date, context: T
 }
 
 export async function handlePostOrCommentSubmitEvent (targetId: string, userName: string, context: TriggerContext) {
-    if (userName === "AutoModerator" || userName === `${context.subredditName}-ModTeam` || userName === context.appName) {
+    if (userName === "AutoModerator" || userName === `${context.subredditName}-ModTeam` || userName === context.appSlug) {
         // Automod could legitimately have activity in "bad" subreddits, but we never want to act on it.
         return false;
     }

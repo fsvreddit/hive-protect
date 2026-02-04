@@ -92,7 +92,7 @@ export async function addCleanupEntriesForBannedAccounts (context: TriggerContex
     const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
     const modLog = await context.reddit.getModerationLog({
         subredditName,
-        moderatorUsernames: [context.appName],
+        moderatorUsernames: [context.appSlug],
         type: "banuser",
         limit: 1000,
     }).all();
