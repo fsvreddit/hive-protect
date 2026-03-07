@@ -20,7 +20,7 @@ export class ActionSendModmail extends ActionBase {
                     shouldModmail = false;
                 }
             } catch {
-            // User has no approvals, so always modmail.
+                // User has no approvals, so always modmail.
             }
         }
 

@@ -1,13 +1,11 @@
 import { TriggerContext } from "@devvit/public-api";
 import { AppInstall, AppUpgrade } from "@devvit/protos";
-import { addCleanupEntriesForBannedAccounts, rescheduleCleanupEntries } from "./cleanupTasks.js";
-import { AppSetting, BAN_MESSAGE_MAX_LENGTH, BAN_NOTE_MAX_LENGTH } from "./settings.js";
-import json2md from "json2md";
 import { createCronJobsIfNotPresent } from "./jobManagement.js";
-import { subHours } from "date-fns";
+import { addSeconds, subHours } from "date-fns";
 import { removeQueuedEntriesOlderThan } from "./handleContentCreation.js";
+import { SchedulerJob, V2_UPDATE_NOTIFICATION_SENT_KEY } from "./constants.js";
 
-export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade, context: TriggerContext) {
+async function handleCommonInstallTasks (context: TriggerContext) {
     console.log("Starting app install/upgrade tasks.");
 
     // Clear down scheduled tasks and re-add.
@@ -16,68 +14,39 @@ export async function handleAppInstallOrUpgradeEvent (_: AppInstall | AppUpgrade
 
     await createCronJobsIfNotPresent(context);
 
-    const cleanupPopulatedKey = "CleanupPopulated";
-    const cleanupPopulated = await context.redis.get(cleanupPopulatedKey);
-    if (!cleanupPopulated) {
-        await addCleanupEntriesForBannedAccounts(context);
-        await context.redis.set(cleanupPopulatedKey, new Date().getTime().toString());
-    } else {
-        await rescheduleCleanupEntries(context);
-    }
-
-    await oneOffCheckForOversizeSettings(context);
-
     // Remove unused Redis keys.
     await context.redis.del("subredditName");
     await context.redis.del("appName");
     await context.redis.del("secondCheckQueue");
+    await context.redis.del("CleanupPopulated");
+
+    await context.scheduler.runJob({
+        name: SchedulerJob.DailyDigest,
+        runAt: new Date(),
+    });
 
     await removeQueuedEntriesOlderThan(subHours(new Date(), 2), context);
 
     console.log("Completed app install/upgrade tasks.");
 }
 
-async function oneOffCheckForOversizeSettings (context: TriggerContext) {
-    const redisKey = "OneOffSizeCheck";
-    const alreadyDone = await context.redis.get(redisKey);
-    if (alreadyDone) {
-        return;
-    }
+export async function handleAppInstallEvent (_: AppInstall, context: TriggerContext) {
+    await context.redis.set(V2_UPDATE_NOTIFICATION_SENT_KEY, context.appVersion);
+    await handleCommonInstallTasks(context);
+}
 
-    const settings = await context.settings.getAll();
-    const banUser = settings[AppSetting.BanEnabled] as boolean | undefined;
-    const banMessage = settings[AppSetting.BanMessage] as string | undefined;
-    const banNote = settings[AppSetting.BanNote] as string | undefined;
+export async function handleAppUpgradeEvent (_: AppUpgrade, context: TriggerContext) {
+    await handleCommonInstallTasks(context);
 
-    const banMessageTooLong = banMessage && banMessage.length > BAN_MESSAGE_MAX_LENGTH;
-    const banNoteTooLong = banNote && banNote.length > BAN_NOTE_MAX_LENGTH;
-
-    if (banUser && (banMessageTooLong || banNoteTooLong)) {
-        const subredditName = context.subredditName ?? (await context.reddit.getCurrentSubreddit()).name;
-
-        const modmail: json2md.DataObject[] = [
-            { p: `Thanks for upgrading Hive Protector on /r/${subredditName}.` },
-            { p: `There's an issue with  the [settings](https://developers.reddit.com/r/${subredditName}/apps/hive-protect) that needs to be addressed for this app to work properly.` },
-        ];
-
-        const bullets: string[] = [];
-        if (banMessageTooLong) {
-            bullets.push(`The Ban Message is too long - it needs to be under ${BAN_MESSAGE_MAX_LENGTH} characters long.`);
-        }
-        if (banNoteTooLong) {
-            bullets.push(`The Ban Note is too long - it needs to be under ${BAN_NOTE_MAX_LENGTH} characters long.`);
-        }
-
-        modmail.push({ ul: bullets });
-
-        modmail.push({ p: "It is likely that Hive Protector will not be able to ban users until this is resolved. Sorry for the inconvenience." });
-
-        await context.reddit.sendPrivateMessage({
-            subject: "Hive Protector Configuration Issue",
-            to: `/r/${subredditName}`,
-            text: json2md(modmail),
+    if (!await context.redis.exists(V2_UPDATE_NOTIFICATION_SENT_KEY)) {
+        // Run update notifier job at a random time in the next half hour.
+        const randomSeconds = 10 + Math.floor(Math.random() * 1800);
+        const runTime = addSeconds(new Date(), randomSeconds);
+        await context.scheduler.runJob({
+            name: SchedulerJob.V2UpdateNotifier,
+            runAt: runTime,
         });
-    }
 
-    await context.redis.set(redisKey, "true");
+        console.log(`Scheduled V2 update notifier to run at ${runTime.toISOString()}.`);
+    }
 }

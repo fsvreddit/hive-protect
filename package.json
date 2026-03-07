@@ -9,8 +9,8 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/protos": "0.12.11",
-    "@devvit/public-api": "0.12.11",
+    "@devvit/protos": "0.12.13",
+    "@devvit/public-api": "0.12.13",
     "date-fns": "^4.0.0",
     "devvit-helpers": "^0.8.4",
     "escape-string-regexp": "^5.0.0",
@@ -24,7 +24,7 @@
     "@types/json2md": "^1.5.4",
     "@types/lodash": "^4.14.202",
     "@types/pluralize": "^0.0.33",
-    "eslint": "^9.10.0",
+    "eslint": "^10.0.2",
     "typescript": "5.8.3",
     "vitest": "^4.0.7"
   }

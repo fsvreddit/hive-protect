@@ -27,8 +27,7 @@ export class ActionAddModnote extends ActionBase {
 
         const promises: Promise<unknown>[] = [];
         if (modNoteType === "native" || modNoteType === "both") {
-            const label: UserNoteLabel = this.settings[AppSetting.BanEnabled] ? "BOT_BAN" : "ABUSE_WARNING";
-            promises.push(this.addNativeNote(this.target, modNote, label, this.context));
+            promises.push(this.addNativeNote(this.target, modNote, "ABUSE_WARNING", this.context));
         }
 
         if (modNoteType === "toolbox" || modNoteType === "both") {
@@ -42,7 +41,7 @@ export class ActionAddModnote extends ActionBase {
     }
 
     private async addNativeNote (target: Post | Comment, note: string, type: UserNoteLabel, context: TriggerContext) {
-        const subredditName = await context.reddit.getCurrentSubredditName();
+        const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
         await context.reddit.addModNote({
             subreddit: subredditName,
             note,
@@ -54,7 +53,7 @@ export class ActionAddModnote extends ActionBase {
 
     private async addToolboxNote (target: Post | Comment, note: string, context: TriggerContext) {
         const toolbox = new ToolboxClient(context.reddit);
-        const subredditName = await context.reddit.getCurrentSubredditName();
+        const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
 
         const usernote: UsernoteInit = {
             text: note,
