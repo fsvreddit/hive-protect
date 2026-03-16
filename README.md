@@ -1,50 +1,53 @@
 # Hive Protector
 
-A Reddit app that can be used to ban, report or remove content from users of "undesirable" subreddits from participating in another. Originally inspired by SafestBot.
+A Reddit app that can be used to report or remove content from users of "undesirable" subreddits, NSFW subreddits or with social links with specified domains from participating in another.
 
-**Warning**: Use of this app to take action against users of subreddits on the basis of identity or vulnerability may be a breach of Reddit's [Mod Code of Conduct](https://support.reddithelp.com/hc/en-us/articles/27031206843156-Moderator-Code-of-Conduct-Rule-1-Create-Facilitate-and-Maintain-a-Stable-Community). Please be mindful of these rules and ensure that any ban messages or comment/post replies are civil and compliant with these policies.
+**Warning**: Use of this app to take action against users of subreddits on the basis of identity or vulnerability may be a breach of Reddit's [Mod Code of Conduct](https://support.reddithelp.com/hc/en-us/articles/27031206843156-Moderator-Code-of-Conduct-Rule-1-Create-Facilitate-and-Maintain-a-Stable-Community). Please be mindful of these rules and ensure that any comment/post replies are civil and compliant with these policies.
 
 ### Detection Options
 
 **List of Subreddits**: A comma-separated list of subreddits to ban users from e.g. FreeKarma4U, FreeKarmaForAll. Not case sensitive.
 
+**Action users with history in NSFW subreddits**: Whether to take action against users of NSFW subreddits. Useful if you have tightly SFW spaces such as those aimed at younger users.
+
 **List of Domains**: A comma-separated list of domains to watch for e.g. onlyfans.com, fansly.com. Don't include "www.". Wildcard support is also acceptable e.g. *.substack.com.
 
-**Content type to act on**: You can choose whether to check user content when they submit posts, comments or both. You can also check a user's social links.
+**Content type to act on**: You can choose whether to check user content when they submit posts, comments or both. You can also check a user's social links and bio text for domains.
 
 **Thresholds**: You can specify a combined posts and comments threshold, a posts threshold and comments threshold separately. Zero means that the threshold will not be checked. At least one threshold should have a value or the Social Links option should be on for the app to have any effect.
 
-**Number of days to monitor**: The app will only check a user's history back this many days. This can be used so that a user's old history is not held against them, or to ban only prolific users of "bad" subreddits.
+**Number of days to monitor**: The app will only check a user's history back this many days. This can be used so that a user's old history is not held against them, or to ban only prolific users of NSFW subreddits.
 
-You can also choose to exempt Approved Users, specific users based on username and users based on specific flairs
+You can also choose to exempt Approved Users, specific users based on username and users based on specific flairs, or users with low karma in NSFW subreddits.
 
-### Ban options
+### Action options
 
-Banning users is optional, you can choose to remove, report, reply or send modmail instead. Please consider informing users in the ban message which subreddits or domains that they were detected in, and I recommend having a transparent appeal process in place.
+You can choose to do any of the following:
 
-The application supports three main modes of handling users who have previously been banned by the app.
+* Remove content
+* Report content
+* Reply to content
+* Send modmail immediately
+* Send a daily summary to modmail of all users detected
+* Alert via a Discord or Slack webhook
+* Add mod note (native or Toolbox)
 
-If you set this to "Never" (the default), the user will never be banned a second time. "Always re-ban" is self-explanatory, and "Ban if new content since previous ban" will only take into account posts or comments in the "bad" subreddits made after their bot ban.
-
-### Other actions
-
-You can choose to make a report on the user, remove their post/comment, reply to the user or notify sub moderators silently via Modmail.
+Ban functionality was removed in version 2.0 due to changes in Admin policies on ban bots. Accounts can still be banned manually after reviewing them individually.
 
 ## Operation notes
 
-The app will only check a user once every 24 hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
+The app will only check a user's history once every 24 hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
 
-However, if a user is unbanned, previously cached results are cleared because an unban may be as a result of a user cleaning up their profile, so it may need to be checked again.
-
-The app will never ban a user based on content in the subreddit the app is installed in - you cannot use this as a "ban anyone who posts or comments" bot.
+The app will never action a user based on content in the subreddit the app is installed in.
 
 Hive Protector only looks back at a user's most recent 100 posts/comments, so detection will not be possible on older content.
 
 ## Example use cases
 
-* Banning users who have participated in free karma subreddits
-* Banning or reporting users from R4R subreddits who have posted in Onlyfans promo subs, or have posted Onlyfans/Fansly links anywhere on Reddit, or have an Onlyfans "social link" on their bio
-* Banning or reporting users of fetish subreddits in SFW subreddits discussing the same topic (e.g. a women's hair styling subreddit might not welcome users with a hair fetish)
+* Identifying users who have participated in free karma subreddits
+* Identifying users with OnlyFans or similar links who may be using SFW subreddits (or non-promotional NSFW subreddits) to promote indirectly
+* Identifying users of fetish subreddits in SFW subreddits discussing the same topic (e.g. a women's hair styling subreddit might not welcome users with a hair fetish)
+* Identifying users with participation in NSFW subreddits posting in SFW safe spaces, especially teen subreddits or subreddits for hair and beauty
 * Adding a sticky comment on a post in NSFW subreddits warning users about the user's post history in OF promotion subs/sharing OF links elsewhere
 * Removing posts in a NSFW subreddit from users with participation history in teen-focussed subreddits or vice-versa
 
@@ -53,7 +56,6 @@ Hive Protector only looks back at a user's most recent 100 posts/comments, so de
 This app uses the Community Apps platform's Redis plugin to store very basic information about users checked.
 
 * The date and time that the app last checked a user, to support checking only once every 12 hours
-* User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
 All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 28 days.
 
@@ -61,25 +63,16 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
-### v1.12.7
+### v2.0
 
-* Add resilience and error recovery
-
-### v1.12.0
-
-* Check users after a short delay to ensure that curated profiles can be viewed by app
-* Allow detection of users who have participated in *any* NSFW sub without explicitly having to specify a list
-* Add option to add a one-off mod note if a user is potentially blocking Hive Protector
-* Improved performance and reliability
+* Remove ban functionality due to changes in Reddit policies on ban bots.
+* Add feature to send a daily modmail message with all detected users.
+* Allow users to be exempted from checks based on their subreddit-specific karma.
 
 ## Feedback
 
-If you have been banned by a subreddit using Hive Protector, please contact the subreddit that banned you.
-
-For any feedback on the bot itself including bugs and enhancements, please post in /r/fsvapps or DM /u/fsv.
+For any feedback on the app itself including bugs and enhancements, please send a message to /u/fsv. Note that the ban options will not be returning due to changes in Admin policy on ban bots.
 
 ## Source code
 
-This app is open source. You can find it on Github [here](https://github.com/fsvreddit/hive-protect).
-
-With thanks to /u/Quick-Pumpkin-1259 for their contributions to the app's code.
+This app is open source. [You can find it on Github here](https://github.com/fsvreddit/hive-protect).

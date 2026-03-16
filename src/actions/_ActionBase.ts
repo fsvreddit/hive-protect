@@ -1,6 +1,5 @@
 import { Comment, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
 import { ProblematicSubsResult } from "../getProblematicItems.js";
-import { AppSetting } from "../settings.js";
 
 export abstract class ActionBase {
     protected target: Post | Comment;
@@ -9,7 +8,7 @@ export abstract class ActionBase {
     protected context: TriggerContext;
 
     public isModuleEnabled (): boolean {
-        if (this.settings[AppSetting.ApplyBanBehavioursToOtherActions] && !this.problematicItemsResult.userBannable) {
+        if (!this.problematicItemsResult.userActionable) {
             return false;
         }
         return true;

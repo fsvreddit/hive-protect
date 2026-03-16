@@ -1,16 +1,9 @@
 import { ModAction } from "@devvit/protos";
 import { TriggerContext } from "@devvit/public-api";
-import { getLatestResultKey } from "./getProblematicItems.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
 import { APPROVALS_KEY } from "./handleContentCreation.js";
 
 export async function handleModActionEvent (event: ModAction, context: TriggerContext) {
-    if (event.targetUser && (event.action === "unbanuser" || event.action === "banuser")) {
-        console.log(`Detected a ${event.action} event for ${event.targetUser.name}. Removing cached check results that may exist.`);
-        // Clear down previous check after unban
-        await context.redis.del(getLatestResultKey(event.targetUser.name));
-    }
-
     if (event.targetUser && (event.action === "approvecomment" || event.action === "approvelink")) {
         let targetId: string | undefined;
         if (event.action === "approvecomment") {

@@ -5,6 +5,7 @@ import { AppSetting } from "./settings.js";
 import { subDays } from "date-fns";
 import { ALL_ACTIONS } from "./actions/_AllActions.js";
 import { userIsExemptByMenu } from "./exemptUserFeature.js";
+import { queueUserForDigest } from "./sendDailyDigest.js";
 
 export async function actionUser (userName: string, targetId: string, problematicItemsResult: ProblematicSubsResult, context: TriggerContext) {
     const settings = await context.settings.getAll();
@@ -74,6 +75,21 @@ export async function actionUser (userName: string, targetId: string, problemati
         return;
     }
 
+    const exemptAccountWithThisLocalLinkKarma = settings[AppSetting.ExemptAccountWithThisLocalLinkKarma] as number | undefined;
+    const exemptAccountWithThisLocalCommentKarma = settings[AppSetting.ExemptAccountWithThisLocalCommentKarma] as number | undefined;
+    if (exemptAccountWithThisLocalLinkKarma || exemptAccountWithThisLocalCommentKarma) {
+        const localKarma = await context.reddit.getUserKarmaFromCurrentSubreddit(userName);
+        if (exemptAccountWithThisLocalLinkKarma && localKarma.fromPosts && localKarma.fromPosts > exemptAccountWithThisLocalLinkKarma) {
+            console.log(`User is exempt from checks because local link karma is greater than ${exemptAccountWithThisLocalLinkKarma}.`);
+            return;
+        }
+
+        if (exemptAccountWithThisLocalCommentKarma && localKarma.fromComments && localKarma.fromComments > exemptAccountWithThisLocalCommentKarma) {
+            console.log(`User is exempt from checks because local comment karma is greater than ${exemptAccountWithThisLocalCommentKarma}.`);
+            return;
+        }
+    }
+
     const target = await getPostOrCommentById(targetId, context);
 
     const actions: Promise<void>[] = [];
@@ -84,6 +100,8 @@ export async function actionUser (userName: string, targetId: string, problemati
             actions.push(actionInstance.execute());
         }
     }
+
+    await queueUserForDigest(userName, targetId, target.permalink, problematicItemsResult, context);
 
     await Promise.all(actions);
 }

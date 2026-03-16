@@ -5,6 +5,7 @@ export enum AppSetting {
     // Detection options
     Subreddits = "subreddits",
     IncludeAnyNSFWSub = "includeAnyNSFWSub",
+    ExemptedNSFWSubs = "exemptedNSFWSubs",
     NumberOfSubredditsThatMustMatch = "numSubredditsToMatch",
     Domains = "domains",
     ContentTypeToActOn = "contenttypetoacton",
@@ -25,14 +26,8 @@ export enum AppSetting {
     ExemptAccountOlderThanDays = "exemptAccountOlderThanDays",
     ExemptAccountWithThisLinkKarma = "exemptAccountWithThisLinkKarma",
     ExemptAccountWithThisCommentKarma = "exemptAccountWithThisCommentKarma",
-
-    // Ban options
-    BanEnabled = "banenabled",
-    BehaviourIfPrevBan = "behaviourifprevban",
-    ApplyBanBehavioursToOtherActions = "banBehaviourForAllActions",
-    BanMessage = "banmessage",
-    BanNote = "bannote",
-    BanDuration = "banduration",
+    ExemptAccountWithThisLocalLinkKarma = "exemptAccountWithThisLocalLinkKarma",
+    ExemptAccountWithThisLocalCommentKarma = "exemptAccountWithThisLocalCommentKarma",
 
     // Removal options
     RemoveEnabled = "removeenabled",
@@ -54,6 +49,9 @@ export enum AppSetting {
     ModmailEnabled = "modmailEnabled",
     ModmailNumber = "modmailNumber",
 
+    // Daily digest options
+    DailyDigestEnabled = "dailyDigestEnabled",
+
     // Mod note options
     ModNoteEnabled = "modNoteEnabled",
     ModNoteType = "modNoteType",
@@ -69,12 +67,6 @@ export enum AppSetting {
 
     // App scoped settings
     SitewideBannedDomains = "sitewideBannedDomains",
-}
-
-export enum PrevBanBehaviour {
-    NeverReBan = "never",
-    AlwaysReBan = "always",
-    OnlyRebanIfNewContent = "newonly",
 }
 
 export enum ContentTypeToActOn {
@@ -98,21 +90,11 @@ function selectFieldHasOptionChosen (event: SettingsFormFieldValidatorEvent<stri
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-function textFieldIsUnderLimit (input: string | undefined, maxLength: number): void | string {
-    if (input && input.length > maxLength) {
-        return `Text is too long. ${input.length}/${maxLength}`;
-    }
-}
-
-export const BAN_MESSAGE_MAX_LENGTH = 900;
-export const BAN_NOTE_MAX_LENGTH = 80;
-
 export const appSettings: SettingsFormField[] = [
     {
         type: "group",
         label: "Detection Options",
-        helpText: "You should specify a subreddit list, a domains list, or both. You should also specify at least one threshold (combined, posts, or comments). If no thresholds or detection options are specified, this app has no effect.",
+        helpText: "You should specify the NSFW subreddit option, a domains list, or both. If using the NSFW subreddit option, you should also specify at least one threshold (combined, posts, or comments). If no thresholds or detection options are specified, this app has no effect.",
         fields: [
             {
                 type: "paragraph",
@@ -123,9 +105,13 @@ export const appSettings: SettingsFormField[] = [
             {
                 type: "boolean",
                 name: AppSetting.IncludeAnyNSFWSub,
-                label: "Include any NSFW subreddit in the subreddit list",
-                helpText: "If enabled, any NSFW subreddit will be treated as if it were included in the subreddit list above.",
+                label: "Action users with history in NSFW subreddits",
                 defaultValue: false,
+            },
+            {
+                type: "paragraph",
+                name: AppSetting.ExemptedNSFWSubs,
+                label: "Enter a comma-separated list of NSFW subreddits to exempt from checks. Omit leading 'r/'. Not case sensitive.",
             },
             {
                 type: "number",
@@ -174,7 +160,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "number",
                 name: AppSetting.CombinedItemCount,
                 label: "Number of posts and comments to meet threshold",
-                helpText: "User must have at least this many posts or comments with a matching subreddit or domain to result in a report/removal/ban. If zero, this threshold will be ignored.",
+                helpText: "User must have at least this many posts or comments with a matching subreddit or domain to result in a report/removal. If zero, this threshold will be ignored.",
                 defaultValue: 6,
             },
             {
@@ -195,7 +181,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "number",
                 name: AppSetting.DaysToMonitor,
                 label: "Number of days to monitor",
-                helpText: "Only comments within this number of days will be counted",
+                helpText: "Only posts or comments within this number of days will be counted",
                 defaultValue: 28,
                 onValidate: ({ value }) => {
                     if (!value || value < 1) {
@@ -206,8 +192,8 @@ export const appSettings: SettingsFormField[] = [
             {
                 type: "number",
                 name: AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs,
-                label: "Exempt accounts with below this much combined karma in problematic subs",
-                helpText: "If this option is selected, users with low karma in problematic subs will be ignored. Set to zero to disable this check.",
+                label: "Exempt accounts with below this much combined karma in NSFW subs",
+                helpText: "If this option is selected, users with low karma in NSFW subs will be ignored. Set to zero to disable this check.",
                 defaultValue: 0,
                 onValidate: ({ value }) => {
                     if (value && value < 0) {
@@ -229,6 +215,12 @@ export const appSettings: SettingsFormField[] = [
                 helpText: "User fails checks if they have any domain matches in their bio text.",
                 defaultValue: false,
             },
+        ],
+    },
+    {
+        type: "group",
+        label: "Exemption Options",
+        fields: [
             {
                 type: "boolean",
                 name: AppSetting.ExemptApprovedUser,
@@ -280,67 +272,26 @@ export const appSettings: SettingsFormField[] = [
                 helpText: "If an account has more comment karma than this, it will be exempt from checks. If zero, no accounts will be exempt based on comment karma.",
                 defaultValue: 0,
             },
-        ],
-    },
-    {
-        type: "group",
-        label: "Ban Options",
-        fields: [
             {
-                type: "boolean",
-                name: AppSetting.BanEnabled,
-                label: "Ban users over threshold",
-                defaultValue: true,
-            },
-            {
-                type: "select",
-                name: AppSetting.BehaviourIfPrevBan,
-                label: "Behaviour if user was previously banned by this app",
-                options: [
-                    { label: "Never re-ban", value: PrevBanBehaviour.NeverReBan },
-                    { label: "Always ban", value: PrevBanBehaviour.AlwaysReBan },
-                    { label: "Ban if new content since previous ban", value: PrevBanBehaviour.OnlyRebanIfNewContent },
-                ],
-                defaultValue: [PrevBanBehaviour.NeverReBan],
-                multiSelect: false,
-                onValidate: selectFieldHasOptionChosen,
-            },
-            {
-                type: "paragraph",
-                name: AppSetting.BanMessage,
-                label: "Enter a ban message to send to users",
-                helpText: "Placeholders supported: {{sublist}}, {{domainlist}}, {{socialurls}}, {{permalink}} and {{username}}. {{sublist}},  {{domainlist}} and {{socialurls}} will be replaced with a comma-separated list of the matched subs or domains and {{permalink}} with the latest post or comment that was detected.",
-                onValidate: ({ value }) => textFieldIsUnderLimit(value, BAN_MESSAGE_MAX_LENGTH),
-            },
-            {
-                type: "string",
-                name: AppSetting.BanNote,
-                label: "Enter a note to put in the ban log (optional)",
-                helpText: "Placeholder supported: {{sublist}}, {{domainlist}}. These will be replaced with a comma-separated list of the matched subs or domains",
-                onValidate: ({ value }) => textFieldIsUnderLimit(value, BAN_NOTE_MAX_LENGTH),
+                type: "number",
+                name: AppSetting.ExemptAccountWithThisLocalLinkKarma,
+                label: "Exempt accounts with this much post karma in this subreddit",
+                helpText: "If an account has more post karma in this subreddit than this, it will be exempt from checks. If zero, no accounts will be exempt based on local post karma.",
+                defaultValue: 0,
             },
             {
                 type: "number",
-                name: AppSetting.BanDuration,
-                label: "Duration of ban in days (if 0 or blank, defaults to permanent)",
-                onValidate: ({ value }) => {
-                    if (value && (value < 0 || value > 999)) {
-                        return "Ban duration must be a number between 0 and 999";
-                    }
-                },
+                name: AppSetting.ExemptAccountWithThisLocalCommentKarma,
+                label: "Exempt accounts with this much comment karma in this subreddit",
+                helpText: "If an account has more comment karma in this subreddit than this, it will be exempt from checks. If zero, no accounts will be exempt based on local comment karma.",
+                defaultValue: 0,
             },
         ],
     },
     {
         type: "group",
-        label: "Other Options",
+        label: "Action Options",
         fields: [
-            {
-                type: "boolean",
-                name: AppSetting.ApplyBanBehavioursToOtherActions,
-                label: "Apply 'behaviour if user was previously banned by this app' options to remaining actions",
-                defaultValue: false,
-            },
             {
                 type: "group",
                 label: "Remove Options",
@@ -453,6 +404,19 @@ export const appSettings: SettingsFormField[] = [
                         label: "Stop modmailing for user after this many approvals",
                         helpText: "Once user has been reported this many times, the app will no longer modmail for further content. If zero, the app will always send modmail.",
                         defaultValue: 3,
+                    },
+                ],
+            },
+            {
+                type: "group",
+                label: "Daily Digest Options",
+                fields: [
+                    {
+                        type: "boolean",
+                        name: AppSetting.DailyDigestEnabled,
+                        label: "Send daily digest of users who failed checks to modmail",
+                        helpText: "If enabled, the app will send a daily digest to modmail of all users who failed checks that day, along with the subreddits and domains that caused them to fail. This is a good option to enable if you don't want to risk modmail or report spam but still want to be notified of potential violators.",
+                        defaultValue: false,
                     },
                 ],
             },

@@ -33,12 +33,25 @@ export async function createCronJobsIfNotPresent (context: TriggerContext) {
         console.log("Scheduled user check queue processing job to run every minute.");
     }
 
+    const dailyDigestJobs = jobs.filter(job => job.name === SchedulerJob.DailyDigest as string);
+    if (dailyDigestJobs.length === 0) {
+        const randomMinute = Math.floor(Math.random() * 60);
+        await context.scheduler.runJob({
+            name: SchedulerJob.DailyDigest,
+            cron: `${randomMinute} 0 * * *`,
+        });
+    }
+
     if (cleanupJobs.length > 1) {
         jobsToRemove.push(...cleanupJobs.slice(1));
     }
 
     if (processQueueJobs.length > 1) {
         jobsToRemove.push(...processQueueJobs.slice(1));
+    }
+
+    if (dailyDigestJobs.length > 1) {
+        jobsToRemove.push(...dailyDigestJobs.slice(1));
     }
 
     if (jobsToRemove.length > 0) {

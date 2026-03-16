@@ -1,6 +1,6 @@
 import { Comment, GetUserOverviewOptions, Post, SettingsValues, TriggerContext } from "@devvit/public-api";
 import { sum, uniq } from "lodash";
-import { AppSetting, ContentTypeToActOn, PrevBanBehaviour } from "./settings.js";
+import { AppSetting, ContentTypeToActOn } from "./settings.js";
 import { domainFromUrlString, trimLeadingWWW } from "./utility.js";
 import pluralize from "pluralize";
 import { isUserBlockingAppAccount } from "./blockChecker.js";
@@ -12,7 +12,7 @@ import { getUserSocialLinks, isContributor, isModerator } from "devvit-helpers";
 export const CACHE_DURATION_HOURS = 12;
 
 export function getLatestResultKey (username: string) {
-    return `participation-lastcheck-${username}`;
+    return `participation-lastcheckresult-${username}`;
 }
 
 export interface ProblematicSubsResult {
@@ -20,7 +20,7 @@ export interface ProblematicSubsResult {
     badDomains: string[];
     socialURLs: string[];
     itemPermalink?: string;
-    userBannable: boolean;
+    userActionable: boolean;
     userBlocking: boolean;
 }
 
@@ -32,16 +32,6 @@ export async function lastCheckResult (context: TriggerContext, userName: string
     }
 
     return JSON.parse(recentCheckValue) as ProblematicSubsResult;
-}
-
-async function previousBanDate (context: TriggerContext, userName: string): Promise<Date | undefined> {
-    const redisKey = `participation-prevbanned-${userName}`;
-    const previousBanDateAsString = await context.redis.get(redisKey);
-    if (!previousBanDateAsString) {
-        return;
-    }
-
-    return new Date(parseInt(previousBanDateAsString));
 }
 
 export interface MockSubItem {
@@ -99,7 +89,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         badSubs: [],
         badDomains: [],
         socialURLs: [],
-        userBannable: false,
+        userActionable: false,
         userBlocking: false,
     } as ProblematicSubsResult;
 
@@ -120,11 +110,6 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const commentThreshold = settings[AppSetting.CommentCount] as number | undefined ?? 0;
     const minSubCount = settings[AppSetting.NumberOfSubredditsThatMustMatch] as number | undefined ?? 1;
 
-    if (!combinedThreshold && !postThreshold && !commentThreshold) {
-        console.log("No thresholds are defined. Quitting.");
-        return emptyResult;
-    }
-
     const userWhitelistSetting = settings[AppSetting.UserWhitelist] as string | undefined;
     if (userWhitelistSetting) {
         const whitelistedUsers = userWhitelistSetting.split(",").map(x => x.trim().toLowerCase());
@@ -137,6 +122,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     // Get main config and quit if not defined properly.
     const subReddits = settings[AppSetting.Subreddits] as string | undefined ?? "";
     const matchAnyNsfwSub = settings[AppSetting.IncludeAnyNSFWSub] as boolean | undefined ?? false;
+    const exemptedNsfwSubs = settings[AppSetting.ExemptedNSFWSubs] as string | undefined ?? "";
+    const exemptedNsfwSubList = exemptedNsfwSubs.toLowerCase().split(",").map(sub => sub.trim()).filter(sub => sub !== "");
+
     const domains = settings[AppSetting.Domains] as string | undefined ?? "";
 
     // Convert into an array of lower-case individual sub names
@@ -147,19 +135,19 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         .filter(domain => domain !== "")
         .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
 
-    if (subredditList.length === 0 && domainList.length === 0 && !matchAnyNsfwSub) {
-        console.log("No subreddits or domains defined.");
+    if (domainList.length === 0 && !matchAnyNsfwSub) {
+        console.log("No domains defined and NSFW sub option is not enabled.");
         return emptyResult;
     }
 
     let userContent: (Post | Comment)[] = [];
 
-    const userOverviewOptions = {
+    const userOverviewOptions: GetUserOverviewOptions = {
         username: userName,
         limit: 100,
         pageSize: 100,
         sort: "new",
-    } as GetUserOverviewOptions;
+    };
 
     try {
         if (combinedThreshold || (postThreshold && commentThreshold)) {
@@ -178,16 +166,15 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         return emptyResult;
     }
 
-    if (!userContent.some(item => item.subredditId !== context.subredditId)) {
-        console.warn(`${userName} has no content outside of the current subreddit!`);
-        return emptyResult;
-    }
-
-    const nsfwSubs: string[] = [];
+    const nsfwSubs = new Set<string>();
     if (matchAnyNsfwSub && userContent.length > 0) {
         for (const sub of uniq(userContent.filter(item => item.subredditId !== context.subredditId).map(item => item.subredditName))) {
+            if (exemptedNsfwSubList.includes(sub.toLowerCase())) {
+                continue;
+            }
+
             if (await subIsNsfw(sub, context)) {
-                nsfwSubs.push(sub.toLowerCase());
+                nsfwSubs.add(sub);
             }
         }
     }
@@ -196,7 +183,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         .filter(item => item.subredditId !== context.subredditId)
         .map(item => ({
             item,
-            foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()) || nsfwSubs.includes(item.subredditName),
+            foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()) || nsfwSubs.has(item.subredditName),
             foundViaDomain: isDomainInList(domainFromUrlString(item.url), domainList),
         } as BadSubItem)).filter(item => item.foundViaDomain || item.foundViaSubreddit);
 
@@ -234,44 +221,12 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     }
 
     let failsChecks: boolean | undefined;
-    let userBannable = false;
 
     if (badSubItems.length > 0 || hasMatchingSocialLinks) {
         // Filter down further to check the configured thresholds.
         const daysToMonitor = settings[AppSetting.DaysToMonitor] as number | undefined ?? 28;
         badSubItems = badSubItems.filter(item => item.item.createdAt > subDays(new Date(), daysToMonitor));
         failsChecks = hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
-
-        if (failsChecks) {
-            // Over threshold, but user may have been previously banned.
-            console.log("User is over the ban threshold. Checking for previous bans.");
-            const previousBan = await previousBanDate(context, userName);
-            if (previousBan) {
-                console.log(`User was previously banned at ${previousBan.toISOString()}`);
-                const postBanBehaviour = (settings[AppSetting.BehaviourIfPrevBan] as string[] | undefined ?? [PrevBanBehaviour.NeverReBan])[0] as PrevBanBehaviour;
-
-                switch (postBanBehaviour) {
-                    case PrevBanBehaviour.NeverReBan:
-                        console.log("App is configured to never re-ban.");
-                        userBannable = false;
-                        break;
-                    case PrevBanBehaviour.OnlyRebanIfNewContent:
-                        console.log("App is configured to only ban based on content since last ban. Disregarding previous content.");
-                        badSubItems = badSubItems.filter(item => item.item.createdAt > previousBan);
-                        failsChecks = failsChecks === hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
-                        userBannable = failsChecks;
-                        break;
-                    case PrevBanBehaviour.AlwaysReBan:
-                        console.log("App is configured to always re-ban.");
-                        userBannable = true;
-                        break;
-                }
-            } else {
-                userBannable = true;
-            }
-        }
-    } else {
-        failsChecks = false;
     }
 
     const badSubKarmaLimit = settings[AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs] as number | undefined ?? 0;
@@ -317,7 +272,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
             socialURLs: uniq(socialURLs),
             itemPermalink: badSubItems[0]?.item.permalink,
-            userBannable,
+            userActionable: true,
             userBlocking: false,
         } as ProblematicSubsResult;
     } else {
@@ -329,7 +284,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                     badDomains: [],
                     badSubs: [],
                     socialURLs: [],
-                    userBannable: false,
+                    userActionable: false,
                     userBlocking: true,
                 } as ProblematicSubsResult;
             } else {
