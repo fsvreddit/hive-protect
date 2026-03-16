@@ -32,6 +32,8 @@ You can choose to do any of the following:
 * Alert via a Discord or Slack webhook
 * Add mod note (native or Toolbox)
 
+Ban functionality was removed in version 2.0 due to changes in Admin policies on ban bots. Accounts can still be banned manually after reviewing them individually.
+
 ## Operation notes
 
 The app will only check a user's history once every 24 hours to avoid flooding the API with requests, it caches the results of the previous check. If a user is over the action threshold the cache duration is reduced to one hour.
@@ -54,7 +56,6 @@ Hive Protector only looks back at a user's most recent 100 posts/comments, so de
 This app uses the Community Apps platform's Redis plugin to store very basic information about users checked.
 
 * The date and time that the app last checked a user, to support checking only once every 12 hours
-* User names of users who have been previously banned by the app, along with the date/time of their ban, to prevent inadvertent re-banning.
 
 All data is automatically removed if the app is uninstalled. If a user deletes their account, any data relating to them will be removed within 28 days.
 
@@ -69,8 +70,6 @@ For older changes, please see the [change log](https://github.com/fsvreddit/hive
 * Allow users to be exempted from checks based on their subreddit-specific karma.
 
 ## Feedback
-
-If you have been banned by a subreddit using Hive Protector, please contact the subreddit that banned you.
 
 For any feedback on the app itself including bugs and enhancements, please send a message to /u/fsv. Note that the ban options will not be returning due to changes in Admin policy on ban bots.
 
