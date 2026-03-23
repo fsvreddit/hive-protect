@@ -63,6 +63,11 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### v2.0.1
+
+* Fix issue that prevented checks from working if only a sub list was defined
+* Fix issue with daily digest modmail message not sending
+
 ### v2.0
 
 * Remove ban functionality due to changes in Reddit policies on ban bots.

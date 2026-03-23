@@ -20,9 +20,10 @@ async function handleCommonInstallTasks (context: TriggerContext) {
     await context.redis.del("secondCheckQueue");
     await context.redis.del("CleanupPopulated");
 
+    const randomMinute = Math.floor(Math.random() * 60);
     await context.scheduler.runJob({
         name: SchedulerJob.DailyDigest,
-        runAt: new Date(),
+        cron: `${randomMinute} 0 * * *`, // Run daily at a random minute past midnight.
     });
 
     await removeQueuedEntriesOlderThan(subHours(new Date(), 2), context);

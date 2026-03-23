@@ -135,8 +135,8 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         .filter(domain => domain !== "")
         .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
 
-    if (domainList.length === 0 && !matchAnyNsfwSub) {
-        console.log("No domains defined and NSFW sub option is not enabled.");
+    if (domainList.length === 0 && subredditList.length === 0 && !matchAnyNsfwSub) {
+        console.log("No domains defined, no subreddits defined, and NSFW sub option is not enabled.");
         return emptyResult;
     }
 
