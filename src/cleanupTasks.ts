@@ -46,7 +46,7 @@ export async function cleanupDeletedAccounts (event: ScheduledJobEvent<JSONObjec
 
     const runLimit = addSeconds(new Date(), 10);
 
-    const recentlyRunKey = "cleanupRecentlyRun";
+    const recentlyRunKey = "cleanupOngoing";
     if (event.data?.fromCron && await context.redis.exists(recentlyRunKey)) {
         return;
     }

@@ -4,7 +4,7 @@ import { isModerator } from "devvit-helpers";
 import { uniq } from "lodash";
 
 async function appUserIsModOfSub (subredditName: string, context: TriggerContext): Promise<boolean> {
-    const redisKey = `appUserIsModOf~${subredditName}`;
+    const redisKey = `appUserIsModOfSub~${subredditName}`;
     const cachedValue = await context.redis.get(redisKey);
     if (cachedValue) {
         return JSON.parse(cachedValue) as boolean;

@@ -12,7 +12,7 @@ import { getUserSocialLinks, isContributor, isModerator } from "devvit-helpers";
 export const CACHE_DURATION_HOURS = 12;
 
 export function getLatestResultKey (username: string) {
-    return `participation-lastcheckresult-${username}`;
+    return `participation-lastcheckresults-${username}`;
 }
 
 export interface ProblematicSubsResult {
@@ -308,7 +308,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 }
 
 async function subIsNsfw (subredditName: string, context: TriggerContext): Promise<boolean> {
-    const subNsfwCacheKey = `subredditnsfw:${subredditName}`;
+    const subNsfwCacheKey = `subredditisnsfw:${subredditName}`;
     const cachedResult = await context.redis.get(subNsfwCacheKey);
     if (cachedResult !== undefined) {
         return JSON.parse(cachedResult) as boolean;

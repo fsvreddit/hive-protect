@@ -52,7 +52,7 @@ export async function handlePostOrCommentSubmitEvent (targetId: string, userName
 
     await addUserToQueue(targetId, userName, context);
 
-    const lastJobCheckKey = "LastJobCheck";
+    const lastJobCheckKey = "LastJobsChecked";
     if (!await context.redis.exists(lastJobCheckKey)) {
         await createCronJobsIfNotPresent(context);
         await context.redis.set(lastJobCheckKey, "", { expiration: addHours(new Date(), 1) });
@@ -67,7 +67,7 @@ export async function checkUserFromQueue (username: string, targetId: string, se
 
     if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
         if (problematicItemsResult.userBlocking) {
-            const redisKey = `userBlocking~${username}`;
+            const redisKey = `userIsBlocking~${username}`;
             const hasBeenReported = await context.redis.get(redisKey);
             if (!hasBeenReported) {
                 const target = await getPostOrCommentById(targetId, context);
@@ -124,7 +124,7 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
         return;
     }
 
-    const runRecentlyKey = "UserCheckQueueRunRecently";
+    const runRecentlyKey = "UserCheckQueueRunOngoing";
     if (event.data?.fromCron) {
         if (await context.redis.exists(runRecentlyKey)) {
             return;

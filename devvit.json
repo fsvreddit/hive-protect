@@ -1,0 +1,14 @@
+{
+    "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+    "name": "hive-protect",
+    "blocks": {
+        "entry": "src/main.ts",
+        "triggers": [
+            "onPostSubmit",
+            "onCommentSubmit",
+            "onModAction",
+            "onAppInstall",
+            "onAppUpgrade"
+        ]
+    }
+}
