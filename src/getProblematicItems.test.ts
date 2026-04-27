@@ -1,4 +1,4 @@
-import { BadSubItem, Domain, isDomainInList, isOverThreshold, MockSubItem } from "./getProblematicItems.js";
+import { BadSubItem, Domain, getMatchingUrlAndDomain, isDomainInList, isOverThreshold, MockSubItem } from "./getProblematicItems.js";
 
 test("Exact domain", () => {
     const input = "bbc.co.uk";
@@ -191,4 +191,46 @@ test("Domains only", () => {
     ];
 
     expect(actual).toEqual(expected);
+});
+
+test("No matches in user bio", () => {
+    const userBio = "I love posting on Reddit!";
+    const domain = { domain: "example.com", wildcard: false } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toBeUndefined();
+});
+
+test("Matching URL and domain in user bio", () => {
+    const userBio = "Check out my website at https://example.com for more info!";
+    const domain = { domain: "example.com", wildcard: false } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toEqual({ matchedUrl: "https://example.com", matchedDomain: "example.com" });
+});
+
+test("Matching URL and domain in user bio with www", () => {
+    const userBio = "Check out my website at https://www.example.com for more info!";
+    const domain = { domain: "example.com", wildcard: false } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toEqual({ matchedUrl: "https://www.example.com", matchedDomain: "example.com" });
+});
+
+test("Matching URL with subdomain in user bio", () => {
+    const userBio = "Visit my blog at https://blog.example.com!";
+    const domain = { domain: "example.com", wildcard: true } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toEqual({ matchedUrl: "https://blog.example.com", matchedDomain: "example.com" });
+});
+
+test("URL in user bio that doesn't match domain", () => {
+    const userBio = "Check out my website at https://notexample.com!";
+    const domain = { domain: "example.com", wildcard: false } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toBeUndefined();
+});
+
+test("URL in user bio that is a substring of a detected domain but not complete match", () => {
+    const userBio = "Check out my website at https://example.com.fakeurl.com!";
+    const domain = { domain: "example.com", wildcard: false } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toBeUndefined();
 });
