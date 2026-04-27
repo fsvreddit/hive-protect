@@ -80,11 +80,28 @@ export interface Domain {
     wildcard: boolean;
 }
 
+export function getMatchingUrlAndDomain (userBio: string, domain: Domain): { matchedUrl: string; matchedDomain: string } | undefined {
+    const escapedDomain = escapeStringRegexp(domain.domain);
+    const domainPattern = domain.wildcard
+        ? `(?:[a-z0-9-]+\\.)*${escapedDomain}`
+        : `(?:www\\.)?${escapedDomain}`;
+
+    // Match full URL-like token containing this domain without matching suffixes like notexample.com.
+    const regex = new RegExp(`(^|[^a-z0-9.-])((?:https?:\\/\\/)?${domainPattern}(?:[/?#][^\\s]*)?)(?=$|[^a-z0-9.-])`, "i");
+    const matches = userBio.match(regex);
+    if (!matches) {
+        return;
+    }
+
+    const matchedUrl = matches[2].replace(/[),.!?;:]+$/g, "");
+    return { matchedUrl, matchedDomain: domain.domain };
+}
+
 export function isDomainInList (domain: string, domainList: Domain[]): boolean {
     return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
 }
 
-export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", settings: SettingsValues, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
+export async function problematicItemsFound (context: TriggerContext, subredditName: string, userName: string, kind: "link" | "comment", targetId: string, settings: SettingsValues, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
     const emptyResult = {
         badSubs: [],
         badDomains: [],
@@ -130,10 +147,10 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim()).filter(subName => subName !== "");
 
-    const domainList = domains.toLowerCase().split(",")
+    const domainList: Domain[] = domains.toLowerCase().split(",")
         .map(domain => trimLeadingWWW(domain.trim()))
         .filter(domain => domain !== "")
-        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
+        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") }));
 
     if (domainList.length === 0 && subredditList.length === 0 && !matchAnyNsfwSub) {
         console.log("No domains defined, no subreddits defined, and NSFW sub option is not enabled.");
@@ -159,9 +176,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     } catch (error) {
         if (error instanceof Error) {
-            console.error(`Error retrieving user content for ${userName}:`, error.message);
+            console.error(`Error retrieving user content for ${userName} and target ${targetId}:`, error.message);
         } else {
-            console.error(`Error retrieving user content for ${userName}:`, error);
+            console.error(`Error retrieving user content for ${userName} and target ${targetId}:`, error);
         }
         return emptyResult;
     }
@@ -179,13 +196,13 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     }
 
-    let badSubItems = userContent
+    let badSubItems: BadSubItem[] = userContent
         .filter(item => item.subredditId !== context.subredditId)
         .map(item => ({
             item,
             foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()) || nsfwSubs.has(item.subredditName),
             foundViaDomain: isDomainInList(domainFromUrlString(item.url), domainList),
-        } as BadSubItem)).filter(item => item.foundViaDomain || item.foundViaSubreddit);
+        })).filter(item => item.foundViaDomain || item.foundViaSubreddit);
 
     let hasMatchingSocialLinks = false;
     const matchingSocialLinksDomains: string[] = [];
@@ -202,19 +219,13 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         const userBio = userExtended?.userDescription;
         if (userBio) {
             for (const domain of domainList) {
-                let regex: RegExp;
-                if (domain.wildcard) {
-                    regex = new RegExp(`\\b(?:https://)?(?:\\w+.)*(${escapeStringRegexp(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
-                } else {
-                    regex = new RegExp(`\\b(?:https://)?(?:www.)?(${escapeStringRegexp(domain.domain)})(?:/[^/]+)+/?\\b`, "i");
-                }
-                const matches = userBio.match(regex);
-                if (!matches) {
+                const match = getMatchingUrlAndDomain(userBio, domain);
+                if (!match) {
                     continue;
                 }
 
-                socialURLs.push(matches[0]);
-                matchingSocialLinksDomains.push(matches[1]);
+                socialURLs.push(match.matchedUrl);
+                matchingSocialLinksDomains.push(match.matchedDomain);
             }
         }
         hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
@@ -274,7 +285,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             itemPermalink: badSubItems[0]?.item.permalink,
             userActionable: true,
             userBlocking: false,
-        } as ProblematicSubsResult;
+        };
     } else {
         if (settings[AppSetting.AntiBlockCheckerEnable]) {
             const isBlocking = await isUserBlockingAppAccount(userContent, context);
@@ -286,7 +297,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                     socialURLs: [],
                     userActionable: false,
                     userBlocking: true,
-                } as ProblematicSubsResult;
+                };
             } else {
                 result = emptyResult;
             }

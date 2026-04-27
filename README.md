@@ -63,6 +63,11 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### v2.1.0
+
+* Fix output of social URLs on replies made by the app - previously outputted the entire bio.
+* Fixed an issue that prevented some users from being checked.
+
 ### v2.0.3
 
 * Work around a Dev Platform issue from 2026-04-14 that would have prevented Hive Protector from seeing future changes to users' history
