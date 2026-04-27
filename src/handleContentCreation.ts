@@ -34,6 +34,12 @@ export async function handleCommentSubmitEvent (event: CommentSubmit, context: T
 const CHECK_QUEUE_KEY = "UserCheckQueue";
 
 async function addUserToQueue (targetId: string, username: string, context: TriggerContext) {
+    if (username === "[redacted]") {
+        const target = await getPostOrCommentById(targetId, context);
+        console.log(`Found a [redacted] user for item ${targetId}. Actual item username is ${target.authorName}`);
+        username = target.authorName;
+    }
+
     await context.redis.zAdd(CHECK_QUEUE_KEY, { member: `${username}:${targetId}`, score: addSeconds(new Date(), 10).getTime() });
 }
 
@@ -63,7 +69,7 @@ export async function checkUserFromQueue (username: string, targetId: string, se
     const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
 
     const kind = isLinkId(targetId) ? "link" : "comment";
-    const problematicItemsResult = await problematicItemsFound(context, subredditName, username, kind, settings);
+    const problematicItemsResult = await problematicItemsFound(context, subredditName, username, kind, targetId, settings);
 
     if (problematicItemsResult.badSubs.length === 0 && problematicItemsResult.badDomains.length === 0) {
         if (problematicItemsResult.userBlocking) {
@@ -144,6 +150,12 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
 
         const { username, targetId } = firstEntry;
         await context.redis.zRem(CHECK_QUEUE_KEY, [`${username}:${targetId}`]);
+
+        if (username === "[redacted]") {
+            console.log(`Skipping user check for ${username} and item ${targetId} due to username being blacklisted.`);
+            continue;
+        }
+
         try {
             await checkUserFromQueue(username, targetId, settings, context);
         } catch (err) {
