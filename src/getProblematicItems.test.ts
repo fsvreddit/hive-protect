@@ -1,4 +1,4 @@
-import { BadSubItem, Domain, getMatchingUrlAndDomain, isDomainInList, isOverThreshold, MockSubItem } from "./getProblematicItems.js";
+import { BadSubItem, Domain, getMatchingUrlAndDomain, isDomainInList, isOverThreshold } from "./getProblematicItems.js";
 
 test("Exact domain", () => {
     const input = "bbc.co.uk";
@@ -68,7 +68,7 @@ test("Multi-subreddit matches", () => {
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarma4U",
-            } as MockSubItem,
+            },
             foundViaSubreddit: true,
             foundViaDomain: false,
         },
@@ -79,7 +79,7 @@ test("Multi-subreddit matches", () => {
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
-            } as MockSubItem,
+            },
             foundViaSubreddit: true,
             foundViaDomain: false,
         },
@@ -105,7 +105,7 @@ test("Multi-subreddit matches with domains", () => {
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarma4U",
-            } as MockSubItem,
+            },
             foundViaSubreddit: false,
             foundViaDomain: true,
         },
@@ -116,7 +116,7 @@ test("Multi-subreddit matches with domains", () => {
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
-            } as MockSubItem,
+            },
             foundViaSubreddit: true,
             foundViaDomain: false,
         },
@@ -127,7 +127,7 @@ test("Multi-subreddit matches with domains", () => {
                 permalink: "",
                 url: "",
                 subredditName: "FreeKarmaForYou",
-            } as MockSubItem,
+            },
             foundViaSubreddit: true,
             foundViaDomain: false,
         },
@@ -154,7 +154,7 @@ test("Domains only", () => {
                 url: "",
                 subredditName: "AskReddit",
                 score: 10,
-            } as MockSubItem,
+            },
             foundViaSubreddit: false,
             foundViaDomain: true,
         },
@@ -165,7 +165,7 @@ test("Domains only", () => {
                 url: "",
                 subredditName: "AskReddit",
                 score: 10,
-            } as MockSubItem,
+            },
             foundViaSubreddit: false,
             foundViaDomain: true,
         },
@@ -176,7 +176,7 @@ test("Domains only", () => {
                 url: "",
                 subredditName: "AskReddit",
                 score: 10,
-            } as MockSubItem,
+            },
             foundViaSubreddit: false,
             foundViaDomain: true,
         },
@@ -233,4 +233,11 @@ test("URL in user bio that is a substring of a detected domain but not complete 
     const domain = { domain: "example.com", wildcard: false } as Domain;
     const result = getMatchingUrlAndDomain(userBio, domain);
     expect(result).toBeUndefined();
+});
+
+test("URL in user bio that matches and has a local part", () => {
+    const userBio = "Check out my website at https://example.com/localpart!";
+    const domain = { domain: "example.com", wildcard: false } as Domain;
+    const result = getMatchingUrlAndDomain(userBio, domain);
+    expect(result).toEqual({ matchedUrl: "https://example.com/localpart", matchedDomain: "example.com" });
 });

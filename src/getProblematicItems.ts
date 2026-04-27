@@ -147,10 +147,10 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     // Convert into an array of lower-case individual sub names
     const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim()).filter(subName => subName !== "");
 
-    const domainList = domains.toLowerCase().split(",")
+    const domainList: Domain[] = domains.toLowerCase().split(",")
         .map(domain => trimLeadingWWW(domain.trim()))
         .filter(domain => domain !== "")
-        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") } as Domain));
+        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") }));
 
     if (domainList.length === 0 && subredditList.length === 0 && !matchAnyNsfwSub) {
         console.log("No domains defined, no subreddits defined, and NSFW sub option is not enabled.");
@@ -196,13 +196,13 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         }
     }
 
-    let badSubItems = userContent
+    let badSubItems: BadSubItem[] = userContent
         .filter(item => item.subredditId !== context.subredditId)
         .map(item => ({
             item,
             foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()) || nsfwSubs.has(item.subredditName),
             foundViaDomain: isDomainInList(domainFromUrlString(item.url), domainList),
-        } as BadSubItem)).filter(item => item.foundViaDomain || item.foundViaSubreddit);
+        })).filter(item => item.foundViaDomain || item.foundViaSubreddit);
 
     let hasMatchingSocialLinks = false;
     const matchingSocialLinksDomains: string[] = [];
@@ -285,7 +285,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
             itemPermalink: badSubItems[0]?.item.permalink,
             userActionable: true,
             userBlocking: false,
-        } as ProblematicSubsResult;
+        };
     } else {
         if (settings[AppSetting.AntiBlockCheckerEnable]) {
             const isBlocking = await isUserBlockingAppAccount(userContent, context);
@@ -297,7 +297,7 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
                     socialURLs: [],
                     userActionable: false,
                     userBlocking: true,
-                } as ProblematicSubsResult;
+                };
             } else {
                 result = emptyResult;
             }
