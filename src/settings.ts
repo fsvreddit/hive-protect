@@ -376,8 +376,13 @@ export const appSettings: SettingsFormField[] = [
                         type: "string",
                         name: AppSetting.ReportTemplate,
                         label: "Template for report reason",
-                        helpText: "Placeholders supported: {{sublist}}, {{domainlist}}.",
+                        helpText: "Placeholders supported: {{sublist}}, {{domainlist}}. Max length 100 characters.",
                         defaultValue: "Content found in: {{sublist}}",
+                        onValidate: ({ value }) => {
+                            if (value && value.length > 100) {
+                                return "Report reason must be 100 characters or fewer";
+                            }
+                        },
                     },
                     {
                         type: "number",

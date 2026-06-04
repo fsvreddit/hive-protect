@@ -63,6 +63,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### v2.1.1
+
+* Fixed issue that prevented posts or comments from being reported if report template is too long
+
 ### v2.1.0
 
 * Fix output of social URLs on replies made by the app - previously outputted the entire bio.

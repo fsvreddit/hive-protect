@@ -9,10 +9,10 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/protos": "0.12.20",
-    "@devvit/public-api": "0.12.20",
+    "@devvit/protos": "0.13.2",
+    "@devvit/public-api": "0.13.2",
     "date-fns": "^4.0.0",
-    "devvit-helpers": "^0.9.0",
+    "devvit-helpers": "^0.10.0",
     "escape-string-regexp": "^5.0.0",
     "json2md": "^2.0.3",
     "lodash": "^4.17.21",

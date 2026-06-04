@@ -32,8 +32,13 @@ export class ActionReport extends ActionBase {
             reportReason = reportReason.replaceAll("{{sublist}}", this.problematicItemsResult.badSubs.join(", "));
             reportReason = reportReason.replaceAll("{{domainlist}}", this.problematicItemsResult.badDomains.join(", "));
             reportReason = reportReason.replaceAll("{{approvals}}", currentApprovalCount?.toString() ?? "0");
+
+            if (reportReason.length > 100) {
+                reportReason = reportReason.substring(0, 97) + "...";
+            }
+
             await this.context.reddit.report(this.target, { reason: reportReason });
-            await this.context.redis.set(`itemreported~${this.target.id}`, new Date().getTime.toString(), { expiration: addDays(new Date(), 7) });
+            await this.context.redis.set(`itemreported~${this.target.id}`, new Date().getTime().toString(), { expiration: addDays(new Date(), 7) });
             console.log(`Reported comment ${this.target.id}`);
         }
     }
