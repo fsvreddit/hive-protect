@@ -517,5 +517,5 @@ export const appSettings: SettingsFormField[] = [
         scope: "app",
         label: "Verbose logs",
         defaultValue: false,
-    }
+    },
 ];
