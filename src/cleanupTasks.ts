@@ -1,6 +1,7 @@
 import { JobContext, JSONObject, ScheduledJobEvent, TriggerContext, User } from "@devvit/public-api";
 import { addDays, addMinutes, addSeconds } from "date-fns";
 import { APPROVALS_KEY } from "./handleContentCreation.js";
+import { AppSetting } from "./settings.js";
 
 const CLEANUP_LOG_KEY = "cleanupStore";
 const DAYS_BETWEEN_CHECKS = 28;
@@ -34,10 +35,14 @@ async function userActive (username: string, context: JobContext): Promise<boole
 
 export async function cleanupDeletedAccounts (event: ScheduledJobEvent<JSONObject | undefined>, context: JobContext) {
     console.log("Cleanup: Starting cleanup job");
+    const verboseLogs = await context.settings.get<boolean>(AppSetting.VerboseLogs);
+
     const usersDueACheck = await context.redis.zRange(CLEANUP_LOG_KEY, 0, new Date().getTime(), { by: "score" }).then(items => items.map(item => item.member));
     if (usersDueACheck.length === 0) {
         // No user accounts need to be checked.
-        console.log("Cleanup: No users are due a check.");
+        if (verboseLogs) {
+            console.log("Cleanup: No users are due a check.");
+        }
         return;
     }
 
@@ -63,7 +68,9 @@ export async function cleanupDeletedAccounts (event: ScheduledJobEvent<JSONObjec
 
         if (await userActive(username, context)) {
             await setCleanupForUser(username, context);
-            console.log(`Cleanup: User ${username} is still active. Rescheduled check.`);
+            if (verboseLogs) {
+                console.log(`Cleanup: User ${username} is still active. Rescheduled check.`);
+            }
             continue;
         }
 

@@ -131,7 +131,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     if (userWhitelistSetting) {
         const whitelistedUsers = userWhitelistSetting.split(",").map(x => x.trim().toLowerCase());
         if (whitelistedUsers.includes(userName.toLowerCase())) {
-            console.log("User is whitelisted.");
+            if (settings[AppSetting.VerboseLogs]) {
+                console.log("User is whitelisted.");
+            }
             return emptyResult;
         }
     }
@@ -153,7 +155,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
         .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") }));
 
     if (domainList.length === 0 && subredditList.length === 0 && !matchAnyNsfwSub) {
-        console.log("No domains defined, no subreddits defined, and NSFW sub option is not enabled.");
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log("No domains defined, no subreddits defined, and NSFW sub option is not enabled.");
+        }
         return emptyResult;
     }
 
@@ -254,7 +258,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
     const badDomainCount = matchingSocialLinksDomains.length;
 
     if (badPostCount === 0 && badCommentCount === 0 && badDomainCount === 0) {
-        console.log(`Found no items of concern for ${userName}.`);
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log(`Found no items of concern for ${userName}.`);
+        }
     } else {
         console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)}, ${badCommentCount} ${pluralize("comment", badCommentCount)} and ${badDomainCount} ${pluralize("domain", badDomainCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
     }
@@ -271,7 +277,9 @@ export async function problematicItemsFound (context: TriggerContext, subredditN
 
         // If any check returns "True", user isn't eligible to be checked.
         if (reasonsToSkipChecks.includes(true)) {
-            console.log(`User ${userName} is not due a ban (mod or approved)`);
+            if (settings[AppSetting.VerboseLogs]) {
+                console.log(`User ${userName} is not due a ban (mod or approved)`);
+            }
             failsChecks = false;
         }
     }

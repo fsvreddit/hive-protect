@@ -67,6 +67,7 @@ export enum AppSetting {
 
     // App scoped settings
     SitewideBannedDomains = "sitewideBannedDomains",
+    VerboseLogs = "verboseLogs",
 }
 
 export enum ContentTypeToActOn {
@@ -510,4 +511,11 @@ export const appSettings: SettingsFormField[] = [
         label: "Sitewide banned domains",
         defaultValue: "beacons.ai",
     },
+    {
+        type: "boolean",
+        name: AppSetting.VerboseLogs,
+        scope: "app",
+        label: "Verbose logs",
+        defaultValue: false,
+    }
 ];

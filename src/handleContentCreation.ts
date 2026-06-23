@@ -40,7 +40,7 @@ async function addUserToQueue (targetId: string, username: string, context: Trig
         username = target.authorName;
     }
 
-    await context.redis.zAdd(CHECK_QUEUE_KEY, { member: `${username}:${targetId}`, score: addSeconds(new Date(), 10).getTime() });
+    await context.redis.zAdd(CHECK_QUEUE_KEY, { member: `${username}:${targetId}`, score: addSeconds(new Date(), 30).getTime() });
 }
 
 export async function removeQueuedEntriesOlderThan (cutoffDate: Date, context: TriggerContext) {
@@ -125,8 +125,12 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
             return { username, targetId };
         }));
 
+    const settings = await context.settings.getAll();
+
     if (checkQueue.length === 0) {
-        console.log("User check queue is empty.");
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log("User check queue is empty.");
+        }
         return;
     }
 
@@ -135,12 +139,13 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
         if (await context.redis.exists(runRecentlyKey)) {
             return;
         }
-        console.log(`Starting processing of user check queue with ${checkQueue.length} ${pluralize("item", checkQueue.length)}.`);
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log(`Starting processing of user check queue with ${checkQueue.length} ${pluralize("item", checkQueue.length)}.`);
+        }
     }
     await context.redis.set(runRecentlyKey, "true", { expiration: addSeconds(new Date(), 30) });
 
     const runLimit = addSeconds(new Date(), 10).getTime();
-    const settings = await context.settings.getAll();
 
     while (checkQueue.length > 0 && Date.now() < runLimit) {
         const firstEntry = checkQueue.shift();
@@ -168,13 +173,17 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
     }
 
     if (checkQueue.length > 0) {
-        console.log(`User check queue not fully processed, ${checkQueue.length} items remain.`);
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log(`User check queue not fully processed, ${checkQueue.length} items remain.`);
+        }
         await context.scheduler.runJob({
             name: SchedulerJob.CheckUserQueue,
             runAt: new Date(),
         });
     } else {
-        console.log("User check queue fully processed.");
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log("User check queue fully processed.");
+        }
         await context.redis.del(runRecentlyKey);
     }
 }
