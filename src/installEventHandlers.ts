@@ -40,6 +40,7 @@ export async function handleAppUpgradeEvent (_: AppUpgrade, context: TriggerCont
         await context.scheduler.runJob({
             name: SchedulerJob.V2UpdateNotifier,
             runAt: runTime,
+            data: { jobGuid: crypto.randomUUID() },
         });
 
         console.log(`Scheduled V2 update notifier to run at ${runTime.toISOString()}.`);

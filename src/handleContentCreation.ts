@@ -1,7 +1,7 @@
 import { JobContext, JSONObject, ScheduledJobEvent, SettingsValues, TriggerContext } from "@devvit/public-api";
 import { CommentSubmit, PostSubmit } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
-import { addDays, addHours, addSeconds } from "date-fns";
+import { addDays, addHours, addMinutes, addSeconds } from "date-fns";
 import { getPostOrCommentById } from "./utility.js";
 import { AppSetting, ContentTypeToActOn } from "./settings.js";
 import { actionUser } from "./actionUser.js";
@@ -10,6 +10,7 @@ import { SchedulerJob } from "./constants.js";
 import { setCleanupForUser } from "./cleanupTasks.js";
 import { createCronJobsIfNotPresent } from "./jobManagement.js";
 import pluralize from "pluralize";
+import { hasTriggerBeenHandled } from "@fsvreddit/fsv-devvit-helpers";
 
 export const APPROVALS_KEY = "ItemApprovalCount";
 
@@ -119,6 +120,12 @@ export async function checkUserFromQueue (username: string, targetId: string, se
 }
 
 export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject | undefined>, context: JobContext) {
+    const jobGuid = event.data?.jobGuid as string | undefined;
+    if (jobGuid && await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
+        console.warn(`User check queue job ${jobGuid} has already been handled. Skipping.`);
+        return;
+    }
+
     const checkQueue = await context.redis.zRange(CHECK_QUEUE_KEY, 0, Date.now(), { by: "score" })
         .then(entries => entries.map((entry) => {
             const [username, targetId] = entry.member.split(":");
@@ -179,6 +186,7 @@ export async function processUserCheckQueue (event: ScheduledJobEvent<JSONObject
         await context.scheduler.runJob({
             name: SchedulerJob.CheckUserQueue,
             runAt: new Date(),
+            data: { jobGuid: crypto.randomUUID() },
         });
     } else {
         if (settings[AppSetting.VerboseLogs]) {

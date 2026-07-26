@@ -2,6 +2,8 @@ import { JobContext, JSONObject, ScheduledJobEvent, TriggerContext, User } from 
 import { addDays, addMinutes, addSeconds } from "date-fns";
 import { APPROVALS_KEY } from "./handleContentCreation.js";
 import { AppSetting } from "./settings.js";
+import { SchedulerJob } from "./constants.js";
+import { hasTriggerBeenHandled } from "@fsvreddit/fsv-devvit-helpers";
 
 const CLEANUP_LOG_KEY = "cleanupStore";
 const DAYS_BETWEEN_CHECKS = 28;
@@ -34,6 +36,12 @@ async function userActive (username: string, context: JobContext): Promise<boole
 }
 
 export async function cleanupDeletedAccounts (event: ScheduledJobEvent<JSONObject | undefined>, context: JobContext) {
+    const jobGuid = event.data?.jobGuid as string | undefined;
+    if (jobGuid && await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
+        console.warn(`Cleanup: Job ${jobGuid} has already been handled. Skipping.`);
+        return;
+    }
+
     console.log("Cleanup: Starting cleanup job");
     const verboseLogs = await context.settings.get<boolean>(AppSetting.VerboseLogs);
 
@@ -87,8 +95,9 @@ export async function cleanupDeletedAccounts (event: ScheduledJobEvent<JSONObjec
     // If there were more users in this run than we could process, schedule another run immediately.
     if (usersDueACheck.length > 0) {
         await context.scheduler.runJob({
-            name: "cleanupDeletedAccounts",
+            name: SchedulerJob.CleanupDeletedAccounts,
             runAt: addSeconds(new Date(), 5),
+            data: { jobGuid: crypto.randomUUID() },
         });
     }
 }

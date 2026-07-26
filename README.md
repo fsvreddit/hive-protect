@@ -63,6 +63,10 @@ All data is automatically removed if the app is uninstalled. If a user deletes t
 
 For older changes, please see the [change log](https://github.com/fsvreddit/hive-protect/blob/main/changelog.md).
 
+### v2.1.3
+
+* Mitigate against duplicate actions if Dev Platform is having issues
+
 ### v2.1.2
 
 * Fixed a potential issue with the daily digest modmail message scheduling
