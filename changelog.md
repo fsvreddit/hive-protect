@@ -1,5 +1,37 @@
 # Change log for Hive Protector
 
+### v2.1.3
+
+* Mitigate against duplicate actions if Dev Platform is having issues
+
+### v2.1.2
+
+* Fixed a potential issue with the daily digest modmail message scheduling
+
+### v2.1.1
+
+* Fixed issue that prevented posts or comments from being reported if report template is too long
+
+### v2.1.0
+
+* Fix output of social URLs on replies made by the app - previously outputted the entire bio.
+* Fixed an issue that prevented some users from being checked.
+
+### v2.0.3
+
+* Work around a Dev Platform issue from 2026-04-14 that would have prevented Hive Protector from seeing future changes to users' history
+
+### v2.0.1
+
+* Fix issue that prevented checks from working if only a sub list was defined
+* Fix issue with daily digest modmail message not sending
+
+### v2.0
+
+* Remove ban functionality due to changes in Reddit policies on ban bots.
+* Add feature to send a daily modmail message with all detected users.
+* Allow users to be exempted from checks based on their subreddit-specific karma.
+
 ### v1.12.7
 
 * Add resilience and error recovery

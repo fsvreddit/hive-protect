@@ -1,0 +1,347 @@
+import { Comment, context, GetUserOverviewOptions, Post, reddit, redis, SettingsValues } from "@devvit/web/server";
+import { isT1, isT3, T1, T3 } from "@devvit/web/shared";
+import { sum, uniq } from "lodash";
+import { AppSetting, ContentTypeToActOn, isUserBlockingAppAccount } from ".";
+import { domainFromUrlString, trimLeadingWWW } from "./utility.js";
+import pluralize from "pluralize";
+import { addHours, addWeeks, subDays } from "date-fns";
+import escapeStringRegexp from "escape-string-regexp";
+import { getUserExtended, getUserSocialLinks, isContributor, isModerator } from "@fsvreddit/fsv-devvit-web-helpers";
+
+export const CACHE_DURATION_HOURS = 12;
+
+export function getLatestResultKey (username: string) {
+    return `participation-lastcheckresults-${username}`;
+}
+
+export interface ProblematicSubsResult {
+    badSubs: string[];
+    badDomains: string[];
+    socialURLs: string[];
+    itemPermalink?: string;
+    userActionable: boolean;
+    userBlocking: boolean;
+}
+
+export async function lastCheckResult (userName: string): Promise<ProblematicSubsResult | undefined> {
+    const recentCheckValue = await redis.get(getLatestResultKey(userName));
+
+    if (!recentCheckValue) {
+        return;
+    }
+
+    return JSON.parse(recentCheckValue) as ProblematicSubsResult;
+}
+
+export interface MockSubItem {
+    id: T1 | T3;
+    createdAt: Date;
+    score: number;
+    subredditName: string;
+    url: string;
+    permalink: string;
+}
+
+export interface BadSubItem {
+    item: Post | Comment | MockSubItem;
+    foundViaSubreddit: boolean;
+    foundViaDomain: boolean;
+}
+
+export function isOverThreshold (items: BadSubItem[], combinedThreshold: number, postThreshold: number, commentThreshold: number, minSubCount: number): boolean {
+    function isOver (items: BadSubItem[], threshold: number, minSubCount: number): boolean {
+        if (items.length < threshold) {
+            return false;
+        }
+
+        const itemsViaDomainCount = items.filter(x => x.foundViaDomain).length;
+        const distinctSubCount = uniq(items.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)).length;
+
+        return itemsViaDomainCount >= threshold || (items.length >= threshold && distinctSubCount >= minSubCount);
+    }
+
+    if (combinedThreshold && isOver(items, combinedThreshold, minSubCount)) {
+        return true;
+    }
+
+    if (postThreshold && isOver(items.filter(item => isT3(item.item.id)), postThreshold, minSubCount)) {
+        return true;
+    }
+
+    if (commentThreshold && isOver(items.filter(item => isT1(item.item.id)), commentThreshold, minSubCount)) {
+        return true;
+    }
+
+    return false;
+}
+
+export interface Domain {
+    domain: string;
+    wildcard: boolean;
+}
+
+export function getMatchingUrlAndDomain (userBio: string, domain: Domain): { matchedUrl: string; matchedDomain: string } | undefined {
+    const escapedDomain = escapeStringRegexp(domain.domain);
+    const domainPattern = domain.wildcard
+        ? `(?:[a-z0-9-]+\\.)*${escapedDomain}`
+        : `(?:www\\.)?${escapedDomain}`;
+
+    // Match full URL-like token containing this domain without matching suffixes like notexample.com.
+    const regex = new RegExp(`(^|[^a-z0-9.-])((?:https?:\\/\\/)?${domainPattern}(?:[/?#][^\\s]*)?)(?=$|[^a-z0-9.-])`, "i");
+    const matches = userBio.match(regex);
+    if (!matches) {
+        return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const matchedUrl = matches[2]!.replace(/[),.!?;:]+$/g, "");
+    return { matchedUrl, matchedDomain: domain.domain };
+}
+
+export function isDomainInList (domain: string, domainList: Domain[]): boolean {
+    return domainList.some(item => domain === item.domain || (item.wildcard && domain.endsWith(`.${item.domain}`)));
+}
+
+export async function problematicItemsFound (userName: string, kind: "link" | "comment", targetId: string, settings: SettingsValues, ignoreCachedResults?: boolean): Promise<ProblematicSubsResult> {
+    const emptyResult = {
+        badSubs: [],
+        badDomains: [],
+        socialURLs: [],
+        userActionable: false,
+        userBlocking: false,
+    } as ProblematicSubsResult;
+
+    // Shortcut most likely reason for skipping before even retrieving comment or config.
+    const lastResult = await lastCheckResult(userName);
+
+    if (lastResult && !ignoreCachedResults) {
+        return lastResult;
+    }
+
+    const typesToActOn = (settings[AppSetting.ContentTypeToActOn] as ContentTypeToActOn[] | undefined ?? [ContentTypeToActOn.PostsAndComments])[0];
+    if ((typesToActOn === ContentTypeToActOn.PostsOnly && kind === "comment") || (typesToActOn === ContentTypeToActOn.CommentsOnly && kind === "link")) {
+        return emptyResult;
+    }
+
+    const combinedThreshold = settings[AppSetting.CombinedItemCount] as number | undefined ?? 0;
+    const postThreshold = settings[AppSetting.PostCount] as number | undefined ?? 0;
+    const commentThreshold = settings[AppSetting.CommentCount] as number | undefined ?? 0;
+    const minSubCount = settings[AppSetting.NumberOfSubredditsThatMustMatch] as number | undefined ?? 1;
+
+    const userWhitelistSetting = settings[AppSetting.UserWhitelist] as string | undefined;
+    if (userWhitelistSetting) {
+        const whitelistedUsers = userWhitelistSetting.split(",").map(x => x.trim().toLowerCase());
+        if (whitelistedUsers.includes(userName.toLowerCase())) {
+            if (settings[AppSetting.VerboseLogs]) {
+                console.log("User is whitelisted.");
+            }
+            return emptyResult;
+        }
+    }
+
+    // Get main config and quit if not defined properly.
+    const subReddits = settings[AppSetting.Subreddits] as string | undefined ?? "";
+    const matchAnyNsfwSub = settings[AppSetting.IncludeAnyNSFWSub] as boolean | undefined ?? false;
+    const exemptedNsfwSubs = settings[AppSetting.ExemptedNSFWSubs] as string | undefined ?? "";
+    const exemptedNsfwSubList = exemptedNsfwSubs.toLowerCase().split(",").map(sub => sub.trim()).filter(sub => sub !== "");
+
+    const domains = settings[AppSetting.Domains] as string | undefined ?? "";
+
+    // Convert into an array of lower-case individual sub names
+    const subredditList = subReddits.toLowerCase().split(",").map(subName => subName.trim()).filter(subName => subName !== "");
+
+    const domainList: Domain[] = domains.toLowerCase().split(",")
+        .map(domain => trimLeadingWWW(domain.trim()))
+        .filter(domain => domain !== "")
+        .map(domain => ({ domain: domain.startsWith("*.") ? domain.replace("*.", "") : domain, wildcard: domain.startsWith("*.") }));
+
+    if (domainList.length === 0 && subredditList.length === 0 && !matchAnyNsfwSub) {
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log("No domains defined, no subreddits defined, and NSFW sub option is not enabled.");
+        }
+        return emptyResult;
+    }
+
+    let userContent: (Post | Comment)[] = [];
+
+    const userOverviewOptions: GetUserOverviewOptions = {
+        username: userName,
+        limit: 100,
+        pageSize: 100,
+        sort: "new",
+    };
+
+    try {
+        if (combinedThreshold || (postThreshold && commentThreshold)) {
+            userContent = await reddit.getCommentsAndPostsByUser(userOverviewOptions).all();
+        } else if (postThreshold) {
+            userContent = await reddit.getPostsByUser(userOverviewOptions).all();
+        } else if (commentThreshold) {
+            userContent = await reddit.getCommentsByUser(userOverviewOptions).all();
+        }
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error(`Error retrieving user content for ${userName} and target ${targetId}:`, error.message);
+        } else {
+            console.error(`Error retrieving user content for ${userName} and target ${targetId}:`, error);
+        }
+        return emptyResult;
+    }
+
+    const nsfwSubs = new Set<string>();
+    if (matchAnyNsfwSub && userContent.length > 0) {
+        for (const sub of uniq(userContent.filter(item => item.subredditId !== context.subredditId).map(item => item.subredditName))) {
+            if (exemptedNsfwSubList.includes(sub.toLowerCase())) {
+                continue;
+            }
+
+            if (await subIsNsfw(sub)) {
+                nsfwSubs.add(sub);
+            }
+        }
+    }
+
+    let badSubItems: BadSubItem[] = userContent
+        .filter(item => item.subredditId !== context.subredditId)
+        .map(item => ({
+            item,
+            foundViaSubreddit: subredditList.includes(item.subredditName.toLowerCase()) || nsfwSubs.has(item.subredditName),
+            foundViaDomain: isDomainInList(domainFromUrlString(item.url), domainList),
+        })).filter(item => item.foundViaDomain || item.foundViaSubreddit);
+
+    let hasMatchingSocialLinks = false;
+    const matchingSocialLinksDomains: string[] = [];
+    const socialURLs: string[] = [];
+    if (settings[AppSetting.CheckSocialLinks] && domainList.length > 0) {
+        const socialLinks = await getUserSocialLinks(userName);
+        socialURLs.push(...socialLinks.map(link => link.outboundUrl));
+        matchingSocialLinksDomains.push(...socialLinks.filter(link => isDomainInList(domainFromUrlString(link.outboundUrl), domainList)).map(link => domainFromUrlString(link.outboundUrl)));
+        hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
+    }
+
+    if (settings[AppSetting.CheckBioTextForLinks] && domainList.length > 0) {
+        const userExtended = await getUserExtended(userName);
+        const userBio = userExtended?.userDescription;
+        if (userBio) {
+            for (const domain of domainList) {
+                const match = getMatchingUrlAndDomain(userBio, domain);
+                if (!match) {
+                    continue;
+                }
+
+                socialURLs.push(match.matchedUrl);
+                matchingSocialLinksDomains.push(match.matchedDomain);
+            }
+        }
+        hasMatchingSocialLinks = matchingSocialLinksDomains.length > 0;
+    }
+
+    let failsChecks: boolean | undefined;
+
+    if (badSubItems.length > 0 || hasMatchingSocialLinks) {
+        // Filter down further to check the configured thresholds.
+        const daysToMonitor = settings[AppSetting.DaysToMonitor] as number | undefined ?? 28;
+        badSubItems = badSubItems.filter(item => item.item.createdAt > subDays(new Date(), daysToMonitor));
+        failsChecks = hasMatchingSocialLinks || isOverThreshold(badSubItems, combinedThreshold, postThreshold, commentThreshold, minSubCount);
+    }
+
+    const badSubKarmaLimit = settings[AppSetting.ExemptAccountsWithLowKarmaInProblematicSubs] as number | undefined ?? 0;
+    if (badSubItems.length > 0 && badSubKarmaLimit > 0) {
+        const badSubKarma = sum(badSubItems.map(item => item.item.score));
+        if (badSubKarma < badSubKarmaLimit) {
+            console.log(`User ${userName} has ${badSubKarma} karma in problematic subs, below limit of ${badSubKarmaLimit}.`);
+            failsChecks = false;
+        }
+    }
+
+    const badPostCount = badSubItems.filter(item => isT3(item.item.id)).length;
+    const badCommentCount = badSubItems.filter(item => isT1(item.item.id)).length;
+    const badDomainCount = matchingSocialLinksDomains.length;
+
+    if (badPostCount === 0 && badCommentCount === 0 && badDomainCount === 0) {
+        if (settings[AppSetting.VerboseLogs]) {
+            console.log(`Found no items of concern for ${userName}.`);
+        }
+    } else {
+        console.log(`Found ${badPostCount} ${pluralize("post", badPostCount)}, ${badCommentCount} ${pluralize("comment", badCommentCount)} and ${badDomainCount} ${pluralize("domain", badDomainCount)} of concern for ${userName}. Over threshold: ${JSON.stringify(failsChecks)}`);
+    }
+
+    if (failsChecks) {
+        // Now check if user is a mod, approved or previously banned. These are generally unlikely to be
+        // true for most subs, so we only do these checks if the user was going to be banned otherwise.
+        const skipChecksPromises: Promise<boolean>[] = [isModerator(context.subredditName, userName)];
+        if (settings[AppSetting.ExemptApprovedUser]) {
+            skipChecksPromises.push(isContributor(context.subredditName, userName));
+        }
+
+        const reasonsToSkipChecks = await Promise.all(skipChecksPromises);
+
+        // If any check returns "True", user isn't eligible to be checked.
+        if (reasonsToSkipChecks.includes(true)) {
+            if (settings[AppSetting.VerboseLogs]) {
+                console.log(`User ${userName} is not due a ban (mod or approved)`);
+            }
+            failsChecks = false;
+        }
+    }
+
+    let result: ProblematicSubsResult;
+    if (failsChecks) {
+        result = {
+            badSubs: uniq(badSubItems.filter(item => item.foundViaSubreddit).map(item => item.item.subredditName)),
+            badDomains: uniq([...matchingSocialLinksDomains, ...badSubItems.filter(item => item.foundViaDomain).map(item => domainFromUrlString(item.item.url))]),
+            socialURLs: uniq(socialURLs),
+            itemPermalink: badSubItems[0]?.item.permalink,
+            userActionable: true,
+            userBlocking: false,
+        };
+    } else {
+        if (settings[AppSetting.AntiBlockCheckerEnable]) {
+            const isBlocking = await isUserBlockingAppAccount(userContent);
+            if (isBlocking) {
+                console.log(`User ${userName} may be blocking Hive Protector!`);
+                result = {
+                    badDomains: [],
+                    badSubs: [],
+                    socialURLs: [],
+                    userActionable: false,
+                    userBlocking: true,
+                };
+            } else {
+                result = emptyResult;
+            }
+        } else {
+            result = emptyResult;
+        }
+    }
+
+    // Store record of this result. Cache for 1 hour if a positive result, or 12 hours if negative.
+    let cacheExpiryTime: Date;
+    if (result.badSubs.length > 0 || result.badDomains.length > 0) {
+        cacheExpiryTime = addHours(new Date(), 1);
+    } else {
+        cacheExpiryTime = addHours(new Date(), CACHE_DURATION_HOURS);
+    }
+    await redis.set(getLatestResultKey(userName), JSON.stringify(result), { expiration: cacheExpiryTime });
+
+    return result;
+}
+
+async function subIsNsfw (subredditName: string): Promise<boolean> {
+    const subNsfwCacheKey = `subredditisnsfw:${subredditName}`;
+    const cachedResult = await redis.get(subNsfwCacheKey);
+    if (cachedResult !== undefined) {
+        return JSON.parse(cachedResult) as boolean;
+    }
+
+    let nsfw: boolean;
+    try {
+        const subreddit = await reddit.getSubredditInfoByName(subredditName);
+        nsfw = subreddit.isNsfw ?? false;
+    } catch {
+        nsfw = false;
+    }
+
+    await redis.set(subNsfwCacheKey, JSON.stringify(nsfw), { expiration: addWeeks(new Date(), 1) });
+    return nsfw;
+}
